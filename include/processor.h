@@ -19,6 +19,10 @@
 #ifndef LIBRE_NES_PROCESSOR_H
 #define LIBRE_NES_PROCESSOR_H
 
+// Software reproduction of the 6502-like processor used by the original NES
+// console. It differs from the standard 6502 primarily in its lack of support
+// for decimal mode, as far as I understand.
+
 #include <stdint.h>
 #include "decoder.h"
 
@@ -27,19 +31,18 @@
 
 // Enumeration representing the CPU flags
 typedef enum : uint8_t {
-    FLAG_CARRY    = 0,
-    FLAG_ZERO     = 1,
-    FLAG_ID       = 2,
-    FLAG_DEC      = 3,
-    FLAG_BRK      = 4,
-    FLAG_NIL      = 5,
-    FLAG_OVERFLOW = 6,
-    FLAG_NEGATIVE = 7,
+    FLAG_CARRY    = 0, // indicates carry in adition, borrow in subtraction
+    FLAG_ZERO     = 1, // indicates the last value dealt with was 0
+    FLAG_ID       = 2, // determines whether maskable interrupts are enabled
+    FLAG_DEC      = 3, // determines if the CPU is decimal mode, no effect in the NES
+    FLAG_BRK      = 4, // for internal usage by the hardware only
+    FLAG_NIL      = 5, // unused
+    FLAG_OVERFLOW = 6, // indicates an overflow happened in the last arithmetic operation
+    FLAG_NEGATIVE = 7, // indicates the last value dealt with was negative
 } Processor_flag;
 
 
-// Quick and stupid forward declaration
-typedef struct nes Emulator;
+typedef struct nes Emulator; // forward declaration
 
 // Structure representing the CPU's current state
 typedef struct {
@@ -55,7 +58,7 @@ typedef struct {
 // Initialize/reset the state of the CPU
 void processor_init(Processor *proc, Emulator *nes);
 
-// Run a single step of execution, reading code from memory
+// Run a single step of execution, reading code from the main memory
 void processor_step(Processor *proc);
 
 #endif // LIBRE_NES_PROCESSOR_H

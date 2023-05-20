@@ -19,9 +19,10 @@
 #ifndef LIBRE_NES_DECODER_H
 #define LIBRE_NES_DECODER_H
 
-#include <stdint.h>
+// Decoding logic for the 6502-like processor. It is best to decouple it from the
+// actual flow of execution of the CPU, as it is also useful for other stuff.
 
-typedef struct nes Emulator; // forward declaration
+#include <stdint.h>
 
 // Enumeration representing the CPU addressing modes
 typedef enum : uint8_t {
@@ -46,9 +47,9 @@ typedef enum : uint8_t {
     // Load and store operations
     LDA, LDX, LDY, STA, STX, STY,
     // Register transfer operations
-    TAX, TAY, TXA, TYA,
+    TAX, TAY, TXA, TYA, TSX, TXS,
     // Stack operations
-    TSX, TXS, PHA, PHP, PLA, PLP,
+    PHA, PHP, PLA, PLP,
     // Logic operations
     AND, EOR, ORA, BIT,
     // Arithmetic operations
@@ -62,7 +63,7 @@ typedef enum : uint8_t {
     // Jump (unconditional) operations
     JMP, JSR, RTS,
     // Branch (conditional) operations
-    BCC, BCS, BEQ, BMI, BNE, BPL, BVC, BVS,
+    BEQ, BNE, BCS, BCC, BMI, BPL, BVS, BVC,
     // Flag operations
     SEC, SEI, SED, CLC, CLI, CLD, CLV
 } Operation;
@@ -73,7 +74,8 @@ typedef struct {
     Addressing mode;
 } Instruction;
 
-// Decode a single instruction
-void processor_decode(Instruction *inst, uint8_t opcode);
+// Decode an 8-bit opcode, translating it into its correspoding CPU operation
+// and addressing mode. Key component of execution
+Instruction decode(uint8_t opcode);
 
 #endif // LIBRE_NES_DECODER_H
