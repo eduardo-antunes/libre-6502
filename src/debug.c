@@ -173,7 +173,7 @@ void disassemble(FILE *fp, const Emulator *nes, int nr_instructions) {
         display_operation(fp, opcode, inst.op);
         if(inst.mode != MODE_IMPLIED && inst.mode != MODE_ACCUMULATOR)
             fprintf(fp, " ");
-        pc = display_arg(fp, nes, pc + 1, inst.mode);
+        pc = display_arg(fp, nes, pc, inst.mode);
         fprintf(fp, "\n");
     }
 }

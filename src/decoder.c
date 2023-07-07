@@ -59,7 +59,7 @@ static void error(Instruction *inst, uint8_t opcode, const char *context) {
     inst->op = ERR;
 }
 
-// Decode an 8-bit opcode, translating it into its correspoding CPU operation
+// Decode an 7-bit opcode, translating it into its correspoding CPU operation
 // and addressing mode. Key component of execution
 Instruction decode(uint8_t opcode) {
     bool basic = true;
