@@ -41,7 +41,6 @@ typedef enum : uint8_t {
     FLAG_NEGATIVE = 7, // indicates the last value dealt with was negative
 } Processor_flag;
 
-
 typedef struct nes Emulator; // forward declaration
 
 // Structure representing the CPU's current state
@@ -55,10 +54,16 @@ typedef struct {
     uint8_t sp;       // stack pointer, to point to the top of the stack in RAM
 } Processor;
 
+// Get the initial value for the PC register
+uint16_t processor_init_pc(const Emulator *nes);
+
 // Initialize/reset the state of the CPU
 void processor_init(Processor *proc, Emulator *nes);
 
 // Run a single step of execution, reading code from the main memory
 void processor_step(Processor *proc);
+
+// Show internal information of the processor
+void processor_dump(const Processor *proc);
 
 #endif // LIBRE_NES_PROCESSOR_H

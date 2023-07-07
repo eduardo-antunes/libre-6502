@@ -2,6 +2,7 @@ project('alt-libre-nes', 'c')
 inc_dir = include_directories('include')
 sources = files(
   'src/main.c'      ,
+  'src/debug.c'     ,
   'src/decoder.c'   ,
   'src/emulator.c'  ,
   'src/processor.c' ,

@@ -24,7 +24,7 @@
 #include "processor.h"
 
 // Temporary starting point of emulated programs
-#define PROG_START 0x2000
+#define PROG_START 0x0200
 
 // Initialize the state of the emulator
 void emulator_init(Emulator *nes) {
@@ -51,4 +51,11 @@ void emulator_write(Emulator *nes, uint16_t addr, uint8_t data) {
     if(addr >= 0x0000 && addr <= 0x1FFF)
         // The main memory is mirrored throught this range
         nes->ram[addr & 0x07FF] = data;
+}
+
+// Load some instructions, for testing purposes
+void emulator_load_prog(Emulator *nes, uint8_t prog[], int n) {
+    uint16_t prog_addr = PROG_START;
+    for(int i = 0; i < n; ++i)
+        emulator_write(nes, prog_addr + i, prog[i]);
 }

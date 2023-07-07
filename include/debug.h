@@ -16,28 +16,15 @@
    libre-nes. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LIBRE_NES_EMULATOR_H
-#define LIBRE_NES_EMULATOR_H
+// Debugging facilities for NES programs
 
-#include <stdint.h>
-#include "processor.h"
+#ifndef LIBRE_NES_DEBUG_H
+#define LIBRE_NES_DEBUG_H
 
-// Structure representing the console itself, as well as the main data bus
-typedef struct nes {
-    Processor proc;    // the 6502-like CPU
-    uint8_t ram[2048]; // the main memory
-} Emulator;
+#include <stdio.h>
+#include "emulator.h"
 
-// Initialize the state of the emulator
-void emulator_init(Emulator *nes);
+// Disassemble a program stored in main memory
+void disassemble(FILE *fp, const Emulator *nes, int nr_instructions);
 
-// Read data from a particular address in memory
-uint8_t emulator_read(const Emulator *nes, uint16_t addr);
-
-// Write data to a particular address in memory
-void emulator_write(Emulator *nes, uint16_t addr, uint8_t data);
-
-// Load some instructions, for testing purposes
-void emulator_load_prog(Emulator *nes, uint8_t prog[], int n);
-
-#endif // LIBRE_NES_EMULATOR_H
+#endif // LIBRE_NES_DEBUG_H

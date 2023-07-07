@@ -25,6 +25,13 @@
 #include "emulator.h"
 #include "processor.h"
 
+// Get the initial value for the PC register
+uint16_t processor_init_pc(const Emulator *nes) {
+    uint16_t pc = emulator_read(nes, 0xFFFC);
+    pc |= emulator_read(nes, 0xFFFD) << 8;
+    return pc;
+}
+
 // Initialize/reset the state of the CPU
 void processor_init(Processor *proc, Emulator *nes) {
     proc->x = 0;
@@ -32,11 +39,8 @@ void processor_init(Processor *proc, Emulator *nes) {
     proc->acc = 0;
     proc->status = 0;
     proc->sp = 0xFF;
-    // read the PC from memory
-    proc->pc = emulator_read(nes, 0xFFFC);
-    proc->pc |= emulator_read(nes, 0xFFFD) << 8;
-    // connect to the outside world
-    proc->nes = nes;
+    proc->nes = nes; // connect to the outside world
+    proc->pc = processor_init_pc(nes); // read PC from memory
 }
 
 // Push a byte to the stack in main memory
@@ -103,18 +107,18 @@ static uint16_t get_address(Processor *proc) {
             addr = emulator_read(proc->nes, proc->pc++);
             break;
         case MODE_ZEROPAGE_X:
-            // The contents of the x register are added to the zero page 
+            // The contents of the x register are added to the zero page
             // address in the following byte to produce the final address
             addr = (emulator_read(proc->nes, proc->pc++) + proc->x) & 0x00FF;
             break;
         case MODE_ZEROPAGE_Y:
-            // The contents of the y register are added to the zero page 
+            // The contents of the y register are added to the zero page
             // address in the following byte to produce the final address
             addr = (emulator_read(proc->nes, proc->pc++) + proc->y) & 0x00FF;
             break;
         case MODE_RELATIVE:
             // Exclusive to branching instructions. The following byte contains
-            // a signed jump offset, which should be added to the address of 
+            // a signed jump offset, which should be added to the address of
             // the instruction itself to produce the final address to jump to
             addr = emulator_read(proc->nes, proc->pc++);
             if(addr & 0x80) addr |= 0xFF00; // sign extension
@@ -126,14 +130,14 @@ static uint16_t get_address(Processor *proc) {
             addr |= emulator_read(proc->nes, proc->pc++) << 8;
             break;
         case MODE_ABSOLUTE_X:
-            // The following two bytes contain an absolute, 16-bit address, 
+            // The following two bytes contain an absolute, 16-bit address,
             // which is to be added with the contents of the x register
             addr = emulator_read(proc->nes, proc->pc++);
             addr |= emulator_read(proc->nes, proc->pc++) << 8;
             addr += proc->x;
             break;
         case MODE_ABSOLUTE_Y:
-            // The following two bytes contain an absolute, 16-bit address, 
+            // The following two bytes contain an absolute, 16-bit address,
             // which is to be added with the contents of the y register
             addr = emulator_read(proc->nes, proc->pc++);
             addr |= emulator_read(proc->nes, proc->pc++) << 8;
@@ -168,14 +172,14 @@ static uint16_t get_address(Processor *proc) {
             addr |= emulator_read(proc->nes, (ptr + 1) & 0x00FF) << 8;
             break;
         default:
-            fprintf(stderr, "(!) Unrecognized addressing mode: %d\n",
+            fprintf(stderr, "[!] Unrecognized addressing mode: %d\n",
                 proc->inst.mode);
     }
     return addr;
 }
 
 // Based on the current addressing mode, get an 8-bit value for the current
-// instruction to work with. Calls get_address internally and thus also 
+// instruction to work with. Calls get_address internally and thus also
 // advances the PC
 static uint8_t get_data(Processor *proc, uint16_t *address) {
     uint16_t addr;
@@ -204,7 +208,7 @@ static uint8_t get_data(Processor *proc, uint16_t *address) {
 }
 
 // General logic of the branching instructions
-static void processor_branch(Processor *proc, Processor_flag flag, bool state) {
+static void branch(Processor *proc, Processor_flag flag, bool state) {
     bool f = get_flag(proc, flag);
     if(f == state) proc->pc = get_address(proc);
 }
@@ -219,7 +223,7 @@ void processor_step(Processor *proc) {
             // NOP: do nothing
             break;
         case ERR:
-            // ERR: indicative of a decoder error, reported by the decoder itself 
+            // ERR: indicative of a decoder error, reported by the decoder itself
             break;
         // Load and store operations:
         case LDA:
@@ -387,35 +391,35 @@ void processor_step(Processor *proc) {
         // Branch operations:
         case BEQ:
             // BEQ: branch if equal (zero flag is set)
-            processor_branch(proc, FLAG_ZERO, true);
+            branch(proc, FLAG_ZERO, true);
             break;
         case BNE:
             // BNE: branch if not equal (zero flag is clear)
-            processor_branch(proc, FLAG_ZERO, false);
+            branch(proc, FLAG_ZERO, false);
             break;
         case BCS:
             // BCS: branch if carry is set
-            processor_branch(proc, FLAG_CARRY, true);
+            branch(proc, FLAG_CARRY, true);
             break;
         case BCC:
             // BCC: branch if carry is clear
-            processor_branch(proc, FLAG_CARRY, false);
+            branch(proc, FLAG_CARRY, false);
             break;
         case BMI:
             // BCS: branch if negative (negative flag is set)
-            processor_branch(proc, FLAG_NEGATIVE, true);
+            branch(proc, FLAG_NEGATIVE, true);
             break;
         case BPL:
             // BPL: branch if positive (negative flag is clear)
-            processor_branch(proc, FLAG_NEGATIVE, false);
+            branch(proc, FLAG_NEGATIVE, false);
             break;
         case BVS:
             // BVS: branch if an overflow happened (overflow flag is set)
-            processor_branch(proc, FLAG_OVERFLOW, true);
+            branch(proc, FLAG_OVERFLOW, true);
             break;
         case BVC:
             // BVC: branch if no overflow happened (overflow flag is clear)
-            processor_branch(proc, FLAG_OVERFLOW, false);
+            branch(proc, FLAG_OVERFLOW, false);
             break;
         // Flag operations:
         case SEC:
@@ -447,7 +451,6 @@ void processor_step(Processor *proc) {
             set_flag(proc, FLAG_OVERFLOW, false);
             break;
         default:
-            // Should not happen
-            fprintf(stderr, "(?) Unimplemented instruction: %02X\n", opcode);
+            fprintf(stderr, "[!] Invalid opcode: %02X\n", opcode);
     }
 }
