@@ -18,12 +18,14 @@
 
 #include <stdio.h>
 #include <stdint.h>
+
 #include "decoder.h"
 #include "emulator.h"
 #include "processor.h"
+#include "disassembler.h"
 
-// Display the operation name in a readable manner
-void display_operation(FILE *fp, uint16_t opcode, Operation op) {
+// Print an operation in readable form, showing the opcode for invalid operations
+void print_operation(FILE *fp, Operation op, uint8_t opcode) {
     switch(op) {
         case NOP: fprintf(fp, "nop"); break;
         case LDA: fprintf(fp, "lda"); break;
@@ -83,97 +85,97 @@ void display_operation(FILE *fp, uint16_t opcode, Operation op) {
     }
 }
 
-// Display the instruction's argument based on the addressing mode, returning
-// the new appropriate value for the PC
-static uint16_t display_arg(FILE *fp, const Emulator *nes, uint16_t pc, Addressing mode) {
+// Print the operand for an instruction given its addressing mode; returns the
+// amount of bytes following the opcode that correspond to its operand
+static uint8_t print_operand(FILE *fp, const Emulator *nes, uint16_t ptr, Addressing mode) {
     uint8_t data;
     uint16_t addr;
     switch(mode) {
-        case MODE_IMPLIED:
-            // No argument to be displayed
-            break;
-        case MODE_ACCUMULATOR:
-            // No argument to be displayed
-            break;
         case MODE_IMMEDIATE:
-            // Argument is the following byte
-            data = emulator_read(nes, pc++);
+            // Operand is the following byte, it is printed in decimal
+            data = emulator_read(nes, ptr);
             fprintf(fp, "#%d", data);
-            break;
+            return 1;
         case MODE_ZEROPAGE:
-            // Argument is the following byte
-            addr = emulator_read(nes, pc++);
+            // Operand is the following byte, which is a zero-page address
+            addr = emulator_read(nes, ptr);
             fprintf(fp, "$%02X", addr);
-            break;
+            return 1;
         case MODE_ZEROPAGE_X:
-            // Argument is the following byte
-            addr = emulator_read(nes, pc++);
+            // Operand is the following byte, which is a zero-page address
+            addr = emulator_read(nes, ptr);
             fprintf(fp, "$%02X,X", addr);
-            break;
+            return 1;
         case MODE_ZEROPAGE_Y:
-            // Argument is the following byte
-            addr = emulator_read(nes, pc++);
+            // Operand is the following byte, which is a zero-page address
+            addr = emulator_read(nes, ptr++);
             fprintf(fp, "$%02X,Y", addr);
-            break;
+            return 1;
         case MODE_RELATIVE:
             // Now these ones are tricky. Ideally, we would like to use labels
             // when disassembling, in order to make the code clearer. That's
             // going to require some preprocessing though. I'll leave it for
             // the future. In the meantime, the raw absolute address will do
-            addr = emulator_read(nes, pc++);
+            addr = emulator_read(nes, ptr);
             if(addr & 0x80) addr |= 0xFF00; // sign extension
-            addr += pc - 2; // get absolute address
+            addr += ptr + addr - 2; // get absolute address
             fprintf(fp, "$%04X", addr);
-            break;
+            return 1;
         case MODE_ABSOLUTE:
-            // Argument is the following two bytes
-            addr = emulator_read(nes, pc++);
-            addr |= emulator_read(nes, pc++) << 8;
+            // Operand is the following two bytes, which is an absolute address
+            addr = emulator_read(nes, ptr);
+            addr |= emulator_read(nes, ptr + 1) << 8;
             fprintf(fp, "$%04X", addr);
-            break;
+            return 2;
         case MODE_ABSOLUTE_X:
-            // Argument is the following two bytes
-            addr = emulator_read(nes, pc++);
-            addr |= emulator_read(nes, pc++) << 8;
+            // Operand is the following two bytes, which is an absolute address
+            addr = emulator_read(nes, ptr);
+            addr |= emulator_read(nes, ptr + 1) << 8;
             fprintf(fp, "$%04X,X", addr);
-            break;
+            return 2;
         case MODE_ABSOLUTE_Y:
-            // Argument is the following two bytes
-            addr = emulator_read(nes, pc++);
-            addr |= emulator_read(nes, pc++) << 8;
+            // Operand is the following two bytes, which is an absolute address
+            addr = emulator_read(nes, ptr);
+            addr |= emulator_read(nes, ptr + 1) << 8;
             fprintf(fp, "$%04X,Y", addr);
-            break;
+            return 2;
         case MODE_INDIRECT:
-            // Argument is the following two bytes
-            addr = emulator_read(nes, pc++);
-            addr |= emulator_read(nes, pc++) << 8;
+            // Operand is the following two bytes, which is an absolute address
+            addr = emulator_read(nes, ptr);
+            addr |= emulator_read(nes, ptr + 1) << 8;
             fprintf(fp, "($%04X)", addr);
-            break;
+            return 2;
         case MODE_INDIRECT_X:
-            // Argument is the following byte
-            addr = emulator_read(nes, pc++);
+            // Operand is the following byte, which is a zero-page address
+            addr = emulator_read(nes, ptr);
             fprintf(fp, "($%02X,X)", addr);
-            break;
+            return 1;
         case MODE_INDIRECT_Y:
-            // Argument is the following byte
-            addr = emulator_read(nes, pc++);
+            // Operand is the following byte, which is a zero-page address
+            addr = emulator_read(nes, ptr);
             fprintf(fp, "($%02X),Y", addr);
-            break;
+            return 1;
+        default:
+            // Other modes don't have operands to be shown
+            return 0;
     }
+}
+
+// Print an instruction in a readable form, reading it from main memory
+static uint16_t print_instruction(FILE *fp, const Emulator *nes, uint16_t pc) {
+    uint8_t opcode = emulator_read(nes, pc++);
+    Instruction inst = decode(opcode);
+    print_operation(fp, inst.op, opcode);
+    if(inst.mode != MODE_IMPLIED && inst.mode != MODE_ACCUMULATOR)
+        fprintf(fp, " ");
+    pc += print_operand(fp, nes, pc, inst.mode);
+    fprintf(fp, "\n");
     return pc;
 }
 
 // Disassemble a program stored in main memory
 void disassemble(FILE *fp, const Emulator *nes, int nr_instructions) {
-    // Reproduction of the PC for disassembling
     uint16_t pc = processor_init_pc(nes);
-    for(int i = 0; i < nr_instructions; ++i) {
-        uint8_t opcode = emulator_read(nes, pc++);
-        Instruction inst = decode(opcode);
-        display_operation(fp, opcode, inst.op);
-        if(inst.mode != MODE_IMPLIED && inst.mode != MODE_ACCUMULATOR)
-            fprintf(fp, " ");
-        pc = display_arg(fp, nes, pc, inst.mode);
-        fprintf(fp, "\n");
-    }
+    for(int i = 0; i < nr_instructions; ++i)
+        pc = print_instruction(fp, nes, pc);
 }

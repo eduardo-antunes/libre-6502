@@ -53,7 +53,7 @@ static void stack_push(Processor *proc, uint8_t data) {
 static void stack_push16(Processor *proc, uint16_t word) {
     // NOTE the stack grows downward in the 6502
     emulator_write(proc->nes, STACK_BASE | proc->sp, word & 0x00FF);
-    emulator_write(proc->nes, STACK_BASE | proc->sp - 1, word >> 8);
+    emulator_write(proc->nes, STACK_BASE | (proc->sp - 1), word >> 8);
     proc->sp -= 2;
 }
 
@@ -67,7 +67,7 @@ static uint8_t stack_pull(Processor *proc) {
 static uint16_t stack_pull16(Processor *proc) {
     // NOTE the stack shrinks upward in the 6502
     uint16_t word = emulator_read(proc->nes, STACK_BASE | proc->sp) << 8;
-    word |= emulator_read(proc->nes, STACK_BASE | proc->sp + 1);
+    word |= emulator_read(proc->nes, STACK_BASE | (proc->sp + 1));
     proc->sp += 2;
     return word;
 }
@@ -207,6 +207,52 @@ static uint8_t get_data(Processor *proc, uint16_t *address) {
     }
 }
 
+// Implementation of the ADC instruction
+static void processor_adc(Processor *proc) {
+    // ADC: add the given data and the carry flag to the accumulator
+    uint8_t data = get_data(proc, NULL);
+    // The result has to be stored in 16 bits to detect carry out. This is a
+    // poor man's substitute for the carry out signal in the original hardware
+    uint16_t sum = proc->acc + data + get_flag(proc, FLAG_CARRY);
+
+    // Here we check for carry out
+    set_flag(proc, FLAG_CARRY, sum & 0x0100);
+    // Here we ignore a potential carry out
+    set_flag(proc, FLAG_ZERO, (sum & 0xFF) == 0);
+    set_flag(proc, FLAG_NEGATIVE, sum & 0x80);
+
+    // The overflow flag must be set if the sign of the result is incorrect
+    // from a mathematical standpoint. That will be the case if its sign bit
+    // is different from that of both operands, because pos + pos can't equal
+    // a negative and neg + neg can't equal a positive
+    set_flag(proc, FLAG_OVERFLOW, (sum ^ proc->acc) & (sum ^ data) & 0x80);
+    proc->acc = (uint8_t) (sum & 0xFF);
+}
+
+// Implementation of the SBC instruction
+static void processor_sbc(Processor *proc) {
+    // SBC: subtract the given data and the negation of the carry flag (which
+    // represents a borrow) from the accumulator
+    uint8_t data = get_data(proc, NULL);
+    // The result has to be stored in 16 bits to detect carry out. This is a
+    // poor man's substitute for the carry out signal in the original hardware
+    uint16_t diff = proc->acc - data - !get_flag(proc, FLAG_CARRY);
+
+    // Here we check for a borrow
+    set_flag(proc, FLAG_CARRY, !(diff & 0x0100));
+    // Here we ignore a potential borrow
+    set_flag(proc, FLAG_ZERO, (diff & 0xFF) == 0);
+    set_flag(proc, FLAG_NEGATIVE, diff & 0x80);
+
+    // The overflow flag must be set if the sign of the result is incorrect
+    // from a mathematical standpoint. That will be the case if its sign bit
+    // is different from that of the first operand and equal to that of the
+    // second, because pos - neg can't equal a negative and neg - pos can't
+    // equal a positive
+    set_flag(proc, FLAG_OVERFLOW, (diff ^ proc->acc) & ~(diff ^ data) & 0x80);
+    proc->acc = (uint8_t) (diff & 0xFF);
+}
+
 // General logic of the branching instructions
 static void branch(Processor *proc, Processor_flag flag, bool state) {
     bool f = get_flag(proc, flag);
@@ -327,8 +373,41 @@ void processor_step(Processor *proc) {
             set_flag(proc, FLAG_OVERFLOW, data & 0x40);
             set_zn(proc, data);
             break;
-        // TODO arithmetic instructions: ADC, SBC, CMP, CPX, CPY
-        // Incremente operations:
+        // Arithmetic instructions:
+        case ADC:
+            // ADC: Add the given data and the carry flag to the accumulator
+            processor_adc(proc);
+            break;
+        case SBC:
+            // SBC: subtract the given data and the negation of the carry flag (which
+            // represents a borrow) from the accumulator
+            processor_sbc(proc);
+            break;
+        case CMP:
+            // CMP: compare the contents of the accumulator and the given data,
+            // setting the appropriate flags in the status register
+            data = get_data(proc, NULL);
+            set_flag(proc, FLAG_CARRY, proc->acc >= data);
+            set_flag(proc, FLAG_ZERO, proc->acc == data);
+            set_flag(proc, FLAG_NEGATIVE, proc->acc < data);
+            break;
+        case CPX:
+            // CPX: compare the contents of the x register and the given data,
+            // setting the appropriate flags in the status register
+            data = get_data(proc, NULL);
+            set_flag(proc, FLAG_CARRY, proc->x >= data);
+            set_flag(proc, FLAG_ZERO, proc->x == data);
+            set_flag(proc, FLAG_NEGATIVE, proc->x < data);
+            break;
+        case CPY:
+            // CPY: compare the contents of the y register and the given data,
+            // setting the appropriate flags in the status register
+            data = get_data(proc, NULL);
+            set_flag(proc, FLAG_CARRY, proc->y >= data);
+            set_flag(proc, FLAG_ZERO, proc->y == data);
+            set_flag(proc, FLAG_NEGATIVE, proc->y < data);
+            break;
+        // Increment operations:
         case INC:
             // INC: increment the memory location at the given address
             data = get_data(proc, &addr);
@@ -358,13 +437,26 @@ void processor_step(Processor *proc) {
             // INY: decrement the x register
             set_zn(proc, --proc->y);
             break;
-        // TODO Shift operations: LSR, ROL, ROR
+        // Shift operations:
+        // TODO ROL and ROR
         case ASL:
             // ASL: arithmetic left shift of the memory location at the given
             // address or the accumulator, depending on the addressing mode
             data = get_data(proc, &addr);
             set_flag(proc, FLAG_CARRY, data & 0x80);
             data <<= 1;
+            set_zn(proc, data);
+            if(proc->inst.mode != MODE_ACCUMULATOR)
+                emulator_write(proc->nes, addr, data);
+            else
+                proc->acc = data;
+            break;
+        case LSR:
+            // LSR: logical right shift of the memory location at the given
+            // address or the accumulator, depending on the addressing mode
+            data = get_data(proc, &addr);
+            set_flag(proc, FLAG_CARRY, data & 0x01);
+            data >>= 1;
             set_zn(proc, data);
             if(proc->inst.mode != MODE_ACCUMULATOR)
                 emulator_write(proc->nes, addr, data);

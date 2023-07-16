@@ -16,10 +16,10 @@
    libre-nes. If not, see <https://www.gnu.org/licenses/>.
 */
 
-// Debugging facilities for NES programs
+// NES machine code disassembler, for developers
 
-#ifndef LIBRE_NES_DEBUG_H
-#define LIBRE_NES_DEBUG_H
+#ifndef LIBRE_NES_DISASSEMBLER_H
+#define LIBRE_NES_DISASSEMBLER_H
 
 #include <stdio.h>
 #include "emulator.h"
@@ -27,4 +27,4 @@
 // Disassemble a program stored in main memory
 void disassemble(FILE *fp, const Emulator *nes, int nr_instructions);
 
-#endif // LIBRE_NES_DEBUG_H
+#endif // LIBRE_NES_DISASSEMBLER_H

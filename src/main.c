@@ -2,7 +2,7 @@
 #include <stdint.h>
 
 #include "emulator.h"
-#include "debug.h"
+#include "disassembler.h"
 
 int main() {
     Emulator em;
