@@ -261,7 +261,7 @@ static void branch(Processor *proc, Processor_flag flag, bool state) {
 
 // Run a single step of execution, reading code from the main memory
 void processor_step(Processor *proc) {
-    uint8_t data; uint16_t addr;
+    uint8_t data, aux; uint16_t addr;
     uint8_t opcode = emulator_read(proc->nes, proc->pc++);
     proc->inst = decode(opcode);
     switch(proc->inst.op) {
@@ -438,7 +438,6 @@ void processor_step(Processor *proc) {
             set_zn(proc, --proc->y);
             break;
         // Shift operations:
-        // TODO ROL and ROR
         case ASL:
             // ASL: arithmetic left shift of the memory location at the given
             // address or the accumulator, depending on the addressing mode
@@ -457,6 +456,36 @@ void processor_step(Processor *proc) {
             data = get_data(proc, &addr);
             set_flag(proc, FLAG_CARRY, data & 0x01);
             data >>= 1;
+            set_zn(proc, data);
+            if(proc->inst.mode != MODE_ACCUMULATOR)
+                emulator_write(proc->nes, addr, data);
+            else
+                proc->acc = data;
+            break;
+        case ROL:
+            // ROL: rotate to the left the memory location at the given address
+            // or the accumulator, depending on the addressing mode
+            data = get_data(proc, &addr);
+            aux = data & 0x80; // leftmost bit (7), to be put in the carry flag
+            data <<= 1;
+            // The rightmost bit (0) is filled with the current carry flag
+            data |= get_flag(proc, FLAG_CARRY);
+            set_flag(proc, FLAG_CARRY, aux);
+            set_zn(proc, data);
+            if(proc->inst.mode != MODE_ACCUMULATOR)
+                emulator_write(proc->nes, addr, data);
+            else
+                proc->acc = data;
+            break;
+        case ROR:
+            // ROR: rotate to the right the memory location at the given
+            // address or the accumulator, depending on the addressing mode
+            data = get_data(proc, &addr);
+            aux = data & 0x01; // rightmost bit (0), to be put in the carry flag
+            data >>= 1;
+            // The leftmost bit (7) is filled with the current carry flag
+            data |= get_flag(proc, FLAG_CARRY) << 7;
+            set_flag(proc, FLAG_CARRY, aux);
             set_zn(proc, data);
             if(proc->inst.mode != MODE_ACCUMULATOR)
                 emulator_write(proc->nes, addr, data);

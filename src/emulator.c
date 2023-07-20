@@ -22,12 +22,14 @@
 
 #include "emulator.h"
 #include "processor.h"
+#include "cart.h"
 
 // Temporary starting point of emulated programs
 #define PROG_START 0x0200
 
 // Initialize the state of the emulator
 void emulator_init(Emulator *nes) {
+    cart_init(&nes->cart);
     processor_init(&nes->proc, nes);
     memset(nes->ram, 0, 2048);
 }
@@ -37,12 +39,9 @@ uint8_t emulator_read(const Emulator *nes, uint16_t addr) {
     if(addr >= 0x0000 && addr <= 0x1FFF)
         // The main memory is mirrored throught this range
         return nes->ram[addr & 0x07FF];
-    else if(addr == 0xFFFC)
-        // This address must contain the low byte of the program start
-        return PROG_START & 0x00FF;
-    else if(addr == 0xFFFD)
-        // This address must contain the high byte of the program start
-        return (PROG_START & 0xFF00) >> 8;
+    else if(addr >= 0x8000 && addr <= 0xFFFF)
+        // This range provides access to the contents of the cartridge
+        return cart_read(&nes->cart, addr);
     return 0;
 }
 
@@ -53,9 +52,7 @@ void emulator_write(Emulator *nes, uint16_t addr, uint8_t data) {
         nes->ram[addr & 0x07FF] = data;
 }
 
-// Load some instructions, for testing purposes
-void emulator_load_prog(Emulator *nes, uint8_t prog[], int n) {
-    uint16_t prog_addr = PROG_START;
-    for(int i = 0; i < n; ++i)
-        emulator_write(nes, prog_addr + i, prog[i]);
+// Load an external iNES file into the cartrige of the console
+void emulator_load(Emulator *nes, const char *filepath) {
+    cart_load(&nes->cart, filepath);
 }

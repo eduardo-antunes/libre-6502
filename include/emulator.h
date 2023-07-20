@@ -21,9 +21,11 @@
 
 #include <stdint.h>
 #include "processor.h"
+#include "cart.h"
 
 // Structure representing the console itself, as well as the main data bus
 typedef struct nes {
+    Cartrige cart;     // the connected game cartrige
     Processor proc;    // the 6502-like CPU
     uint8_t ram[2048]; // the main memory
 } Emulator;
@@ -37,7 +39,7 @@ uint8_t emulator_read(const Emulator *nes, uint16_t addr);
 // Write data to a particular address in memory
 void emulator_write(Emulator *nes, uint16_t addr, uint8_t data);
 
-// Load some instructions, for testing purposes
-void emulator_load_prog(Emulator *nes, uint8_t prog[], int n);
+// Load an external iNES file into the cartrige of the console
+void emulator_load(Emulator *nes, const char *filepath);
 
 #endif // LIBRE_NES_EMULATOR_H
