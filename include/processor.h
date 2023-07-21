@@ -63,7 +63,4 @@ void processor_init(Processor *proc, Emulator *nes);
 // Run a single step of execution, reading code from the main memory
 void processor_step(Processor *proc);
 
-// Show internal information of the processor
-void processor_dump(const Processor *proc);
-
 #endif // LIBRE_NES_PROCESSOR_H

@@ -44,7 +44,7 @@ uint8_t cart_read(const Cartrige *cart, uint16_t addr);
 // Write data to the cartridge
 void cart_write(Cartrige *cart, uint16_t addr, uint8_t data);
 
-// Free an existing cartridge and initialize to be empty again
+// Free an existing cartridge and initialize it to be empty again
 void cart_free(Cartrige *cart);
 
 #endif // LIBRE_NES_CART_H

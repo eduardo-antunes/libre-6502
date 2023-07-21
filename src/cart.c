@@ -46,8 +46,9 @@ int cart_load(Cartrige *cart, const char *filepath) {
         return 1;
     }
 
-    // Every iNES file must start with the hardcoded string "NES\r\n"
-    const char magic[5] = "NES\x1A"; char buf[5] = {0};
+    // Every iNES file must start with the hardcoded string "NES\x1A"
+    char buf[5] = {0};
+    const char magic[5] = "NES\x1A";
     fread(buf, sizeof(char), 4, rom);
     if(strcmp(magic, buf) != 0) {
         fprintf(stderr, "[!] Invalid iNES file: %s\n", filepath);
@@ -62,13 +63,13 @@ int cart_load(Cartrige *cart, const char *filepath) {
     cart->chr_size = cart->chr_banks * CHR_BANK_SIZE;
 
     // Read the mapper ID (only NROM, #0, is supported now)
-    uint8_t f6, f7;
+    uint8_t flags6, flags7;
     fseek(rom, FLAGS_OFFSET, SEEK_SET);
-    fread(&f6, sizeof(uint8_t), 1, rom);
-    fread(&f7, sizeof(uint8_t), 1, rom);
-    cart->mapper_id = f6 >> 4;
-    cart->mapper_id |= f7 & 0xF0;
-    assert(cart->mapper_id == 0); // TEMP
+    fread(&flags6, sizeof(uint8_t), 1, rom);
+    fread(&flags7, sizeof(uint8_t), 1, rom);
+    cart->mapper_id = flags6 >> 4;
+    cart->mapper_id |= flags7 & 0xF0;
+    assert(cart->mapper_id == 0); // NROM #0 hardcoded
 
     // Read the program code, allocating memory for it
     fseek(rom, PRG_CODE_OFFSET, SEEK_SET);
@@ -83,11 +84,11 @@ int cart_load(Cartrige *cart, const char *filepath) {
 // Read data from the cartridge
 uint8_t cart_read(const Cartrige *cart, uint16_t addr) {
     assert(cart->mapper_id == 0); // NROM #0 hardcoded
-    if(addr >= 0x8000 && addr <= 0xBFFF) {
-        return cart->prg[addr - 0x8000];
-    } else if(addr >= 0xC000 && addr <= 0xFFFF) {
-        return (cart->prg_banks == 1) ? cart->prg[addr - 0xC000]
-            : cart->prg[addr - 0x8000];
+    if(addr >= 0x0000 && addr <= 0x3FFF) {
+        return cart->prg[addr];
+    } else if(addr >= 0x4000 && addr <= 0x7FFF) {
+        return (cart->prg_banks == 1) ? cart->prg[addr & 0x3FFF]
+            : cart->prg[addr];
     }
     return 0;
 }
@@ -97,7 +98,7 @@ void cart_write(Cartrige *cart, uint16_t addr, uint8_t data) {
     return; // all of the memory is ROM
 }
 
-// Free an existing cartridge and initialize to be empty again
+// Free an existing cartridge and initialize it to be empty again
 void cart_free(Cartrige *cart) {
     if(cart->prg != NULL) free(cart->prg);
     if(cart->chr != NULL) free(cart->chr);

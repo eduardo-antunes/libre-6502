@@ -21,40 +21,35 @@
 #include <stdbool.h>
 #include "decoder.h"
 
-// Lookup tables for the group 1 instructions:
-static const Operation op_table1[] = {
-    [0] = ORA, [1] = AND, [2] = EOR, [3] = ADC,
-    [4] = STA, [5] = LDA, [6] = CMP, [7] = SBC,
-};
-static const Addressing mode_table1[] = {
-    [0] = MODE_INDIRECT_X, [1] = MODE_ZEROPAGE,
-    [2] = MODE_IMMEDIATE,  [3] = MODE_ABSOLUTE,
-    [4] = MODE_INDIRECT_Y, [5] = MODE_ZEROPAGE_X,
-    [6] = MODE_ABSOLUTE_Y, [7] = MODE_ABSOLUTE_X,
+// Lookup tables for operations and modes
+
+static const Operation op_table[][8] = {
+    // Group 1 operations
+    [0] = { [0] = ORA, [1] = AND, [2] = EOR, [3] = ADC,
+            [4] = STA, [5] = LDA, [6] = CMP, [7] = SBC, },
+    // Group 2 operations
+    [1] = { [0] = ASL, [1] = ROL, [2] = LSR, [3] = ROR,
+            [4] = STX, [5] = LDX, [6] = DEC, [7] = INC, },
+    // Group 3 operations (no valid entry for 0)
+    [2] = { [1] = BIT, [2] = JMP, [3] = JMP, [4] = STY,
+            [5] = LDY, [6] = CPY, [7] = CPX, },
 };
 
-// Lookup tables for the group 2 instructions:
-static const Operation op_table2[] = {
-    [0] = ASL, [1] = ROL, [2] = LSR, [3] = ROR,
-    [4] = STX, [5] = LDX, [6] = DEC, [7] = INC,
-};
-static const Addressing mode_table2[] = {
-    // No entries for 4 and 6 on purpose: both are invalid!
-    [0] = MODE_IMMEDIATE,   [1] = MODE_ZEROPAGE,
-    [2] = MODE_ACCUMULATOR, [3] = MODE_ABSOLUTE,
-    [5] = MODE_ZEROPAGE_X,  [7] = MODE_ABSOLUTE_X,
-};
-
-// Lookup table for group 3 instructions:
-static const Operation op_table3[] = {
-    // No entry for 0 on purpose: it is invalid!
-    [1] = BIT, [2] = JMP, [3] = JMP, [4] = STY,
-    [5] = LDY, [6] = CPY, [7] = CPX,
+static const Addressing mode_table[][8] = {
+    // Group 1 modes
+    [0] = { [0] = MODE_INDIRECT_X,  [1] = MODE_ZEROPAGE,
+            [2] = MODE_IMMEDIATE,   [3] = MODE_ABSOLUTE,
+            [4] = MODE_INDIRECT_Y,  [5] = MODE_ZEROPAGE_X,
+            [6] = MODE_ABSOLUTE_Y,  [7] = MODE_ABSOLUTE_X, },
+    // Group 2 and 3 modes (no valid entries for 4 and 6)
+    [1] = { [0] = MODE_IMMEDIATE,   [1] = MODE_ZEROPAGE,
+            [2] = MODE_ACCUMULATOR, [3] = MODE_ABSOLUTE,
+            [5] = MODE_ZEROPAGE_X,  [7] = MODE_ABSOLUTE_X, },
 };
 
 // Report decoding error
 static void error(Instruction *inst, uint8_t opcode, const char *context) {
-    fprintf(stderr, "(!) Nonsensical opcode: %02X\n", opcode);
+    fprintf(stderr, "[!] Nonsensical opcode: %02X\n", opcode);
     if(context != NULL) fprintf(stderr, "Context: %s\n", context);
     inst->op = ERR;
 }
@@ -109,8 +104,8 @@ Instruction decode(uint8_t opcode) {
     switch(group) {
         case 1:
             // Group 1 instructions: the most regular ones
-            inst.op = op_table1[op];
-            inst.mode = mode_table1[mode];
+            inst.op = op_table[0][op];
+            inst.mode = mode_table[0][mode];
             if(inst.op == STA && inst.mode == MODE_IMMEDIATE)
                 error(&inst, opcode, "LDA does not support immediate addressing");
             break;
@@ -122,8 +117,8 @@ Instruction decode(uint8_t opcode) {
                 error(&inst, opcode, "Invalid mode specifier for group 2 instruction");
                 return inst;
             }
-            inst.op = op_table2[op];
-            inst.mode = mode_table2[mode];
+            inst.op = op_table[1][op];
+            inst.mode = mode_table[1][mode];
             // Irregularities in individual instructions
             switch(inst.op) {
                 case STX:
@@ -201,12 +196,12 @@ Instruction decode(uint8_t opcode) {
             }
             // Addressing modes are looked up in the same table as group 2,
             // except accumulator mode is not supported in group 3
-            inst.mode = mode_table2[mode];
+            inst.mode = mode_table[1][mode];
             if(inst.mode == MODE_ACCUMULATOR)
                 error(&inst, opcode, "Group 3 instructions don't support accumulator addressing");
             if(op == 0)
                 error(&inst, opcode, NULL);
-            inst.op = op_table3[op];
+            inst.op = op_table[2][op];
             // Irregularities in individual instructions (almost all of them)
             switch(inst.op) {
                 case BIT:

@@ -41,7 +41,7 @@ uint8_t emulator_read(const Emulator *nes, uint16_t addr) {
         return nes->ram[addr & 0x07FF];
     else if(addr >= 0x8000 && addr <= 0xFFFF)
         // This range provides access to the contents of the cartridge
-        return cart_read(&nes->cart, addr);
+        return cart_read(&nes->cart, addr - 0x8000);
     return 0;
 }
 
