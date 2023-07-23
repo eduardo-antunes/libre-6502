@@ -259,8 +259,8 @@ static void branch(Processor *proc, Processor_flag flag, bool state) {
     if(f == state) proc->pc = get_address(proc);
 }
 
-// Run a single step of execution, reading code from the main memory
-void processor_step(Processor *proc) {
+// Run a single clock cycle of execution
+void processor_clock(Processor *proc) {
     uint8_t data, aux; uint16_t addr;
     uint8_t opcode = emulator_read(proc->nes, proc->pc++);
     proc->inst = decode(opcode);
@@ -574,4 +574,12 @@ void processor_step(Processor *proc) {
         default:
             fprintf(stderr, "[!] Invalid opcode: %02X\n", opcode);
     }
+}
+
+// Display the processor's internal state in a readable format
+void processor_display_info(const Processor *proc) {
+    printf("PC [0x%04X]\n", proc->pc);
+    printf("X [%u] Y [%u] A [%u]\n", proc->x, proc->y, proc->acc);
+    // TODO print flags
+    printf("STACK_PTR [0x%02X]\n", proc->sp);
 }

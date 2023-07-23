@@ -60,7 +60,10 @@ uint16_t processor_init_pc(const Emulator *nes);
 // Initialize/reset the state of the CPU
 void processor_init(Processor *proc, Emulator *nes);
 
-// Run a single step of execution, reading code from the main memory
-void processor_step(Processor *proc);
+// Run a single clock cycle of execution
+void processor_clock(Processor *proc);
+
+// Display the processor's internal state in a readable format
+void processor_display_info(const Processor *proc);
 
 #endif // LIBRE_NES_PROCESSOR_H

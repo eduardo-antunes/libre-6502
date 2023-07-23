@@ -16,21 +16,12 @@
    libre-nes. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <stdio.h>
-#include <stdint.h>
+#ifndef LIBRE_NES_READER_H
+#define LIBRE_NES_READER_H
 
 #include "cart.h"
-#include "emulator.h"
-#include "disassembler.h"
 
-int main(int argc, char *argv[]) {
-    if(argc < 2) {
-        fprintf(stderr, "usage: %s <file.nes>\n", argv[0]);
-        return 1;
-    }
-    Emulator libre_nes;
-    emulator_init(&libre_nes, argv[1]);
-    emulator_start(&libre_nes);
-    emulator_free(&libre_nes);
-    return 0;
-}
+// Read an external iNES file, loading its contents into a cartridge
+void ines_read(const char *filepath, Cartrige *cart);
+
+#endif // LIBRE_NES_READER_H

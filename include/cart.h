@@ -32,19 +32,16 @@ typedef struct {
     uint8_t mapper_id;
 } Cartrige;
 
-// Initialize a new empty cartridge
-void cart_init(Cartrige *cart);
-
-// Load cartridge contents from an external iNES file
-int cart_load(Cartrige *cart, const char *filepath);
+// Initialize a new cartridge, loading its contents from an external iNES file
+void cartridge_init(Cartrige *cart, const char *rom_filepath);
 
 // Read data from the cartridge
-uint8_t cart_read(const Cartrige *cart, uint16_t addr);
+uint8_t cartridge_read(const Cartrige *cart, uint16_t addr);
 
 // Write data to the cartridge
-void cart_write(Cartrige *cart, uint16_t addr, uint8_t data);
+void cartridge_write(Cartrige *cart, uint16_t addr, uint8_t data);
 
-// Free an existing cartridge and initialize it to be empty again
-void cart_free(Cartrige *cart);
+// Free the heap memory associated with the given cartridge
+void cartridge_free(Cartrige *cart);
 
 #endif // LIBRE_NES_CART_H

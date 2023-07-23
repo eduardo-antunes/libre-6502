@@ -16,22 +16,39 @@
    libre-nes. If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 
 #include "emulator.h"
 #include "processor.h"
+#include "reader.h"
 #include "cart.h"
 
-// Temporary starting point of emulated programs
-#define PROG_START 0x0200
-
 // Initialize the state of the emulator
-void emulator_init(Emulator *nes) {
-    cart_init(&nes->cart);
+void emulator_init(Emulator *nes, const char *rom_filepath) {
+    cartridge_init(&nes->cart, rom_filepath);
     processor_init(&nes->proc, nes);
     memset(nes->ram, 0, 2048);
+}
+
+// Start the emulator's operation
+void emulator_start(Emulator *nes) {
+    int quit = 0, i = 0;
+    printf("Initial state of the processor:\n");
+    processor_display_info(&nes->proc);
+    while(!quit) {
+        processor_clock(&nes->proc);
+        printf("\nClock cycle #%d done! Processor state:\n", i);
+        processor_display_info(&nes->proc);
+        printf("\nContinue? [y/n] ");
+        char ans = getchar();
+        getchar(); // to remove newline
+        if(ans == 'n') quit = 1;
+        ++i;
+    }
+    printf("Happy debugging!\n");
 }
 
 // Read data from a particular address in memory
@@ -41,7 +58,7 @@ uint8_t emulator_read(const Emulator *nes, uint16_t addr) {
         return nes->ram[addr & 0x07FF];
     else if(addr >= 0x8000 && addr <= 0xFFFF)
         // This range provides access to the contents of the cartridge
-        return cart_read(&nes->cart, addr - 0x8000);
+        return cartridge_read(&nes->cart, addr - 0x8000);
     return 0;
 }
 
@@ -52,7 +69,7 @@ void emulator_write(Emulator *nes, uint16_t addr, uint8_t data) {
         nes->ram[addr & 0x07FF] = data;
 }
 
-// Load an external iNES file into the cartrige of the console
-void emulator_load(Emulator *nes, const char *filepath) {
-    cart_load(&nes->cart, filepath);
+// Free all heap memory associated with the emulator
+void emulator_free(Emulator *nes) {
+    cartridge_free(&nes->cart);
 }

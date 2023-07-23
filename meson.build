@@ -7,5 +7,6 @@ sources = files(
   'src/disassembler.c' ,
   'src/emulator.c'     ,
   'src/processor.c'    ,
+  'src/reader.c'       ,
 )
 executable('libre-nes', sources, include_directories: inc_dir)

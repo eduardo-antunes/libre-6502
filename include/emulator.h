@@ -31,7 +31,10 @@ typedef struct nes {
 } Emulator;
 
 // Initialize the state of the emulator
-void emulator_init(Emulator *nes);
+void emulator_init(Emulator *nes, const char *rom_filepath);
+
+// Start the emulator's operation
+void emulator_start(Emulator *nes);
 
 // Read data from a particular address in memory
 uint8_t emulator_read(const Emulator *nes, uint16_t addr);
@@ -39,7 +42,7 @@ uint8_t emulator_read(const Emulator *nes, uint16_t addr);
 // Write data to a particular address in memory
 void emulator_write(Emulator *nes, uint16_t addr, uint8_t data);
 
-// Load an external iNES file into the cartrige of the console
-void emulator_load(Emulator *nes, const char *filepath);
+// Free all heap memory associated with the emulator
+void emulator_free(Emulator *nes);
 
 #endif // LIBRE_NES_EMULATOR_H

@@ -50,7 +50,7 @@ static const Addressing mode_table[][8] = {
 // Report decoding error
 static void error(Instruction *inst, uint8_t opcode, const char *context) {
     fprintf(stderr, "[!] Nonsensical opcode: %02X\n", opcode);
-    if(context != NULL) fprintf(stderr, "Context: %s\n", context);
+    if(context != NULL) fprintf(stderr, "[?] %s\n", context);
     inst->op = ERR;
 }
 
@@ -234,7 +234,7 @@ Instruction decode(uint8_t opcode) {
             }
             break;
         default:
-            error(&inst, opcode, NULL);
+            error(&inst, opcode, "Opcode doesn't fit an instruction group");
     }
     return inst;
 }
