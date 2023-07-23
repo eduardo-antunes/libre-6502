@@ -122,7 +122,7 @@ static uint16_t get_address(Processor *proc) {
             // the instruction itself to produce the final address to jump to
             addr = emulator_read(proc->nes, proc->pc++);
             if(addr & 0x80) addr |= 0xFF00; // sign extension
-            addr += proc->pc - 2;
+            addr += proc->pc;
             break;
         case MODE_ABSOLUTE:
             // The following two bytes contain an absolute, 16-bit address
