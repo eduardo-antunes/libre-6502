@@ -26,47 +26,46 @@
 #include "reader.h"
 #include "cart.h"
 
-// Initialize the state of the emulator
+// Initialize the state of the emulator, loading an iNES rom file
 void emulator_init(Emulator *nes, const char *rom_filepath) {
     cartridge_init(&nes->cart, rom_filepath);
-    processor_init(&nes->proc, nes);
+    processor_connect(&nes->proc, nes);
     memset(nes->ram, 0, 2048);
 }
 
 // Start the emulator's operation
 void emulator_start(Emulator *nes) {
+    char op;
     int quit = 0, i = 0;
-    printf("Initial state of the processor:\n");
-    processor_display_info(&nes->proc);
+    processor_reset(&nes->proc);
     while(!quit) {
         processor_clock(&nes->proc);
-        printf("\nClock cycle #%d done! Processor state:\n", i);
-        processor_display_info(&nes->proc);
-        printf("\nContinue? [y/n] ");
-        char ans = getchar();
-        getchar(); // to remove newline
-        if(ans == 'n') quit = 1;
+        printf("Clock cycle #%d done. Continue? [y/n] ", i);
+        while(op != 'y' && op != 'n') op = getchar();
+        if(op == 'n') quit = 1;
         ++i;
     }
-    printf("Happy debugging!\n");
 }
 
-// Read data from a particular address in memory
+// Read data from a particular address in the main bus
 uint8_t emulator_read(const Emulator *nes, uint16_t addr) {
     if(addr >= 0x0000 && addr <= 0x1FFF)
         // The main memory is mirrored throught this range
         return nes->ram[addr & 0x07FF];
     else if(addr >= 0x8000 && addr <= 0xFFFF)
-        // This range provides access to the contents of the cartridge
-        return cartridge_read(&nes->cart, addr - 0x8000);
+        // This 32KiB range provides access to the contents of the cartridge
+        return cartridge_read(&nes->cart, addr - 0x4020);
     return 0;
 }
 
-// Write data to a particular address in memory
+// Write data to a particular address in the main bus
 void emulator_write(Emulator *nes, uint16_t addr, uint8_t data) {
     if(addr >= 0x0000 && addr <= 0x1FFF)
         // The main memory is mirrored throught this range
         nes->ram[addr & 0x07FF] = data;
+    else if(addr >= 0x8000 && addr <= 0xFFFF)
+        // This 32KiB range provides access to the contents of the cartridge
+        cartridge_write(&nes->cart, addr - 0x8000, data);
 }
 
 // Free all heap memory associated with the emulator

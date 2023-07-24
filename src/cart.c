@@ -32,7 +32,7 @@ void cartridge_init(Cartrige *cart, const char *rom_filepath) {
     ines_read(rom_filepath, cart);
 }
 
-// Read data from the cartridge
+// Read data from the cartridge. The provided addresses go from 0x0000 to 0x7FFF
 uint8_t cartridge_read(const Cartrige *cart, uint16_t addr) {
     assert(cart->mapper_id == 0); // NROM #0 hardcoded
     if(addr >= 0x0000 && addr <= 0x3FFF) {

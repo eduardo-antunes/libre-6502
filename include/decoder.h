@@ -26,24 +26,23 @@
 
 // Enumeration representing the CPU addressing modes
 typedef enum : uint8_t {
-    MODE_IMPLIED     = 0,
-    MODE_ACCUMULATOR = 1,
-    MODE_IMMEDIATE   = 2,
-    MODE_ZEROPAGE    = 3,
-    MODE_ZEROPAGE_X  = 4,
-    MODE_ZEROPAGE_Y  = 5,
-    MODE_RELATIVE    = 6,
-    MODE_ABSOLUTE    = 7,
-    MODE_ABSOLUTE_X  = 8,
-    MODE_ABSOLUTE_Y  = 9,
-    MODE_INDIRECT    = 10,
-    MODE_INDIRECT_X  = 11,
-    MODE_INDIRECT_Y  = 12,
+    MODE_IMPLIED     ,
+    MODE_ACCUMULATOR ,
+    MODE_IMMEDIATE   ,
+    MODE_ZEROPAGE    ,
+    MODE_ZEROPAGE_X  ,
+    MODE_ZEROPAGE_Y  ,
+    MODE_RELATIVE    ,
+    MODE_ABSOLUTE    ,
+    MODE_ABSOLUTE_X  ,
+    MODE_ABSOLUTE_Y  ,
+    MODE_INDIRECT    ,
+    MODE_INDIRECT_X  ,
+    MODE_INDIRECT_Y  ,
 } Addressing;
 
 // Enumeration representing the available CPU operations
 typedef enum : uint8_t {
-    NOP, ERR,
     // Load and store operations
     LDA, LDX, LDY, STA, STX, STY,
     // Register transfer operations
@@ -65,7 +64,9 @@ typedef enum : uint8_t {
     // Branch (conditional) operations
     BEQ, BNE, BCS, BCC, BMI, BPL, BVS, BVC,
     // Flag operations
-    SEC, SEI, SED, CLC, CLI, CLD, CLV
+    SEC, SEI, SED, CLC, CLI, CLD, CLV,
+    // System/symbolic operations
+    BRK, NOP, RTI, ERR,
 } Operation;
 
 // Richer representation of a CPU instruction

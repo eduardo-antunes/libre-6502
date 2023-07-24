@@ -63,10 +63,12 @@ Instruction decode(uint8_t opcode) {
     // Most of these use the implied addressing mode. The one exception is the
     // JSR instruction, which uses absolute addressing.
     switch(opcode) {
+        case 0x00: inst.op = BRK; break;
         case 0x08: inst.op = PHP; break;
         case 0x18: inst.op = CLC; break;
         case 0x20: inst.op = JSR; inst.mode = MODE_ABSOLUTE; break;
         case 0x38: inst.op = PLP; break;
+        case 0x40: inst.op = RTI; break;
         case 0x48: inst.op = PHA; break;
         case 0x58: inst.op = CLI; break;
         case 0x60: inst.op = RTS; break;
@@ -82,14 +84,6 @@ Instruction decode(uint8_t opcode) {
         case 0xD8: inst.op = CLD; break;
         case 0xE8: inst.op = INX; break;
         case 0xF8: inst.op = SED; break;
-        case 0x00:
-            // TODO this is the BRK instruction
-            // inst.op = BRK;
-            break;
-        case 0x40:
-            // TODO this is the RTI instruction
-            // inst.op = RTI;
-            break;
         default:
             basic = false;
     }

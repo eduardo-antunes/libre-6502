@@ -25,50 +25,58 @@
 #include "emulator.h"
 #include "processor.h"
 
-// Get the initial value for the PC register
-uint16_t processor_init_pc(const Emulator *nes) {
-    uint16_t pc = emulator_read(nes, 0xFFFC);
-    pc |= emulator_read(nes, 0xFFFD) << 8;
-    return pc;
+// Reset vectors' addresses
+#define NMI_VEC 0xFFFA
+#define RST_VEC 0xFFFC
+#define IRQ_VEC 0xFFFE
+
+// Base address of the stack in RAM. It is confined to page #01
+#define STACK_BASE 0x0100
+
+// Connect the processor to the rest of the console
+void processor_connect(Processor *proc, Emulator *nes) {
+    proc->nes = nes;
+}
+
+// Read a 16-bit address from the data bus
+static uint16_t read_address(const Emulator *nes, uint16_t addr) {
+    uint16_t address = emulator_read(nes, addr);
+    address |= emulator_read(nes, addr + 1) << 8;
+    return address;
 }
 
 // Initialize/reset the state of the CPU
-void processor_init(Processor *proc, Emulator *nes) {
+void processor_reset(Processor *proc) {
     proc->x = 0;
     proc->y = 0;
     proc->acc = 0;
-    proc->status = 0;
-    proc->sp = 0xFF;
-    proc->nes = nes; // connect to the outside world
-    proc->pc = processor_init_pc(nes); // read PC from memory
+    proc->sp = 0xFD;
+    proc->status = 0x34; // IRQ starts disabled
+    proc->pc = read_address(proc->nes, RST_VEC);
 }
+
+// NOTE: the stack grows downward and shrinks upward in the 6502
 
 // Push a byte to the stack in main memory
 static void stack_push(Processor *proc, uint8_t data) {
-    // NOTE the stack grows downward in the 6502
     emulator_write(proc->nes, STACK_BASE | proc->sp--, data);
 }
 
 // Push a 16-bit value to the stack in main memory
 static void stack_push16(Processor *proc, uint16_t word) {
-    // NOTE the stack grows downward in the 6502
-    emulator_write(proc->nes, STACK_BASE | proc->sp, word & 0x00FF);
-    emulator_write(proc->nes, STACK_BASE | (proc->sp - 1), word >> 8);
-    proc->sp -= 2;
+    emulator_write(proc->nes, STACK_BASE | proc->sp--, word & 0x00FF);
+    emulator_write(proc->nes, STACK_BASE | proc->sp--, word >> 8);
 }
 
 // Pop/pull a byte from the stack in main memory
 static uint8_t stack_pull(Processor *proc) {
-    // NOTE the stack shrinks upward in the 6502
     return emulator_read(proc->nes, STACK_BASE | ++proc->sp);
 }
 
 // Pop/pull a 16-bit value from the stack in main memory
 static uint16_t stack_pull16(Processor *proc) {
-    // NOTE the stack shrinks upward in the 6502
-    uint16_t word = emulator_read(proc->nes, STACK_BASE | proc->sp) << 8;
-    word |= emulator_read(proc->nes, STACK_BASE | (proc->sp + 1));
-    proc->sp += 2;
+    uint16_t word = emulator_read(proc->nes, STACK_BASE | ++proc->sp) << 8;
+    word |= emulator_read(proc->nes, STACK_BASE | ++proc->sp);
     return word;
 }
 
@@ -83,10 +91,25 @@ static void set_flag(Processor *proc, Processor_flag flag, bool state) {
     else proc->status &= ~(1 << flag);
 }
 
-// Set or clear the zero and negative flags based on some value
+// Set or clear the zero and negative flags based on a value
 static void set_zn(Processor *proc, uint8_t data) {
     set_flag(proc, FLAG_ZERO, data == 0);
     set_flag(proc, FLAG_NEGATIVE, data & 0x80);
+}
+
+// Generate a CPU interruption (IRQ or NMI)
+void processor_interrupt(Processor *proc, bool maskable) {
+    // Maskable interrupts (IRQ) are ignored if the IRQ disable flag is set
+    if(maskable && get_flag(proc, FLAG_ID)) return;
+    // Interrupts trigger a very particular process in the CPU. The current
+    // values for the PC and the status register are saved to the stack and
+    // the PC is set to the address pointed to by a particular interrupt
+    // vector. That address is supposed to be an interrupt handler, terminated
+    // by an RTI instruction.
+    stack_push16(proc, proc->pc);
+    stack_push(proc, proc->status);
+    set_flag(proc, FLAG_ID, true); // disable IRQ
+    proc->pc = read_address(proc->nes, maskable ? IRQ_VEC : NMI_VEC);
 }
 
 // Based on the current addressing mode, get an absolute address for the
@@ -118,8 +141,8 @@ static uint16_t get_address(Processor *proc) {
             break;
         case MODE_RELATIVE:
             // Exclusive to branching instructions. The following byte contains
-            // a signed jump offset, which should be added to the address of
-            // the instruction itself to produce the final address to jump to
+            // a signed jump offset, which should be added to the current value
+            // of the PC (after reading the instruction) to get the raw address
             addr = emulator_read(proc->nes, proc->pc++);
             if(addr & 0x80) addr |= 0xFF00; // sign extension
             addr += proc->pc;
@@ -207,9 +230,8 @@ static uint8_t get_data(Processor *proc, uint16_t *address) {
     }
 }
 
-// Implementation of the ADC instruction
-static void processor_adc(Processor *proc) {
-    // ADC: add the given data and the carry flag to the accumulator
+// Operation of addition in the processor
+static void processor_add(Processor *proc) {
     uint8_t data = get_data(proc, NULL);
     // The result has to be stored in 16 bits to detect carry out. This is a
     // poor man's substitute for the carry out signal in the original hardware
@@ -229,10 +251,8 @@ static void processor_adc(Processor *proc) {
     proc->acc = (uint8_t) (sum & 0xFF);
 }
 
-// Implementation of the SBC instruction
-static void processor_sbc(Processor *proc) {
-    // SBC: subtract the given data and the negation of the carry flag (which
-    // represents a borrow) from the accumulator
+// Operation of subtraction in the processor
+static void processor_sub(Processor *proc) {
     uint8_t data = get_data(proc, NULL);
     // The result has to be stored in 16 bits to detect carry out. This is a
     // poor man's substitute for the carry out signal in the original hardware
@@ -265,12 +285,6 @@ void processor_clock(Processor *proc) {
     uint8_t opcode = emulator_read(proc->nes, proc->pc++);
     proc->inst = decode(opcode);
     switch(proc->inst.op) {
-        case NOP:
-            // NOP: do nothing
-            break;
-        case ERR:
-            // ERR: indicative of a decoder error, reported by the decoder itself
-            break;
         // Load and store operations:
         case LDA:
             // LDA: load given data into the accumulator
@@ -339,6 +353,7 @@ void processor_clock(Processor *proc) {
             break;
         case PHP:
             // PHP: push the status register on the stack
+            set_flag(proc, FLAG_BRK, true);
             stack_push(proc, proc->status);
             break;
         case PLA:
@@ -376,12 +391,12 @@ void processor_clock(Processor *proc) {
         // Arithmetic instructions:
         case ADC:
             // ADC: Add the given data and the carry flag to the accumulator
-            processor_adc(proc);
+            processor_add(proc);
             break;
         case SBC:
             // SBC: subtract the given data and the negation of the carry flag (which
             // represents a borrow) from the accumulator
-            processor_sbc(proc);
+            processor_sub(proc);
             break;
         case CMP:
             // CMP: compare the contents of the accumulator and the given data,
@@ -571,15 +586,26 @@ void processor_clock(Processor *proc) {
             // CLV: clear overflow flag
             set_flag(proc, FLAG_OVERFLOW, false);
             break;
+        // System/symbolic operations:
+        case BRK:
+            // BRK: force an interrupt (IRQ), setting the BRK flag
+            set_flag(proc, FLAG_BRK, true);
+            processor_interrupt(proc, true);
+            break;
+        case NOP:
+            // NOP: do nothing
+            break;
+        case RTI:
+            // RTI: return from an interrupt handler
+            proc->status = stack_pull(proc); // restore status register
+            set_flag(proc, FLAG_BRK, false);
+            set_flag(proc, FLAG_NIL, false);
+            proc->pc = stack_pull16(proc);
+            break;
+        case ERR:
+            // ERR: indicative of a decoder error, reported by the decoder itself
+            break;
         default:
             fprintf(stderr, "[!] Invalid opcode: %02X\n", opcode);
     }
-}
-
-// Display the processor's internal state in a readable format
-void processor_display_info(const Processor *proc) {
-    printf("PC [0x%04X]\n", proc->pc);
-    printf("X [%u] Y [%u] A [%u]\n", proc->x, proc->y, proc->acc);
-    // TODO print flags
-    printf("STACK_PTR [0x%02X]\n", proc->sp);
 }

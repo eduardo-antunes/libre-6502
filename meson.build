@@ -4,7 +4,6 @@ sources = files(
   'src/main.c'         ,
   'src/cart.c'         ,
   'src/decoder.c'      ,
-  'src/disassembler.c' ,
   'src/emulator.c'     ,
   'src/processor.c'    ,
   'src/reader.c'       ,

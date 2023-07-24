@@ -27,19 +27,19 @@
 typedef struct nes {
     Cartrige cart;     // the connected game cartrige
     Processor proc;    // the 6502-like CPU
-    uint8_t ram[2048]; // the main memory
+    uint8_t ram[2048]; // 2KiB of main memory
 } Emulator;
 
-// Initialize the state of the emulator
+// Initialize the state of the emulator, loading an iNES rom file
 void emulator_init(Emulator *nes, const char *rom_filepath);
 
 // Start the emulator's operation
 void emulator_start(Emulator *nes);
 
-// Read data from a particular address in memory
+// Read data from a particular address in the main bus
 uint8_t emulator_read(const Emulator *nes, uint16_t addr);
 
-// Write data to a particular address in memory
+// Write data to a particular address in the main bus
 void emulator_write(Emulator *nes, uint16_t addr, uint8_t data);
 
 // Free all heap memory associated with the emulator

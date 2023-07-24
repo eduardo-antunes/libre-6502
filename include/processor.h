@@ -24,17 +24,15 @@
 // for decimal mode, as far as I understand.
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "decoder.h"
-
-// Base address of the stack in RAM
-#define STACK_BASE 0x0100
 
 // Enumeration representing the CPU flags
 typedef enum : uint8_t {
     FLAG_CARRY    = 0, // indicates carry in adition, borrow in subtraction
     FLAG_ZERO     = 1, // indicates the last value dealt with was 0
-    FLAG_ID       = 2, // determines whether maskable interrupts are enabled
-    FLAG_DEC      = 3, // determines if the CPU is decimal mode, no effect in the NES
+    FLAG_ID       = 2, // determines whether maskable interrupts (IRQ) are disabled
+    FLAG_DEC      = 3, // determines if the CPU is in decimal mode, no effect in the NES
     FLAG_BRK      = 4, // for internal usage by the hardware only
     FLAG_NIL      = 5, // unused
     FLAG_OVERFLOW = 6, // indicates an overflow happened in the last arithmetic operation
@@ -54,16 +52,16 @@ typedef struct {
     uint8_t sp;       // stack pointer, to point to the top of the stack in RAM
 } Processor;
 
-// Get the initial value for the PC register
-uint16_t processor_init_pc(const Emulator *nes);
+// Connect the processor to the rest of the console
+void processor_connect(Processor *proc, Emulator *nes);
 
 // Initialize/reset the state of the CPU
-void processor_init(Processor *proc, Emulator *nes);
+void processor_reset(Processor *proc);
+
+// Generate a CPU interruption (IRQ or NMI)
+void processor_interrupt(Processor *proc, bool maskable);
 
 // Run a single clock cycle of execution
 void processor_clock(Processor *proc);
-
-// Display the processor's internal state in a readable format
-void processor_display_info(const Processor *proc);
 
 #endif // LIBRE_NES_PROCESSOR_H
