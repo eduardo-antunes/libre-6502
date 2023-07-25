@@ -22,7 +22,7 @@
 #include <string.h>
 
 #include "reader.h"
-#include "cart.h"
+#include "cartridge.h"
 
 // Offsets for reading into the iNES file
 #define SIZE_OFFSET     4

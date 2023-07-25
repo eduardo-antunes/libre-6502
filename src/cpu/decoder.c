@@ -19,7 +19,9 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "decoder.h"
+
+#include "cpu/definitions.h"
+#include "cpu/decoder.h"
 
 // Lookup tables for operations and modes
 
@@ -35,7 +37,7 @@ static const Operation op_table[][8] = {
             [5] = LDY, [6] = CPY, [7] = CPX, },
 };
 
-static const Addressing mode_table[][8] = {
+static const Addressing_mode mode_table[][8] = {
     // Group 1 modes
     [0] = { [0] = MODE_INDIRECT_X,  [1] = MODE_ZEROPAGE,
             [2] = MODE_IMMEDIATE,   [3] = MODE_ABSOLUTE,
@@ -54,11 +56,11 @@ static void error(Instruction *inst, uint8_t opcode, const char *context) {
     inst->op = ERR;
 }
 
-// Decode an 7-bit opcode, translating it into its correspoding CPU operation
-// and addressing mode. Key component of execution
+// Decode an 8-bit opcode, translating it into an operation-addressing mode
+// pair that can be more easily processed by the CPU
 Instruction decode(uint8_t opcode) {
     bool basic = true;
-    Instruction inst = { .op = NOP, .mode = MODE_IMPLIED };
+    Instruction inst = { .code = opcode, .op = NOP, .mode = MODE_IMPLIED };
     // A select group of instructions are best decoded via a simple switch-case.
     // Most of these use the implied addressing mode. The one exception is the
     // JSR instruction, which uses absolute addressing.

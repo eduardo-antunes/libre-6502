@@ -20,8 +20,8 @@
 #define LIBRE_NES_EMULATOR_H
 
 #include <stdint.h>
-#include "processor.h"
-#include "cart.h"
+#include "cpu/processor.h"
+#include "cartridge.h"
 
 // Structure representing the console itself, as well as the main data bus
 typedef struct nes {

@@ -16,8 +16,8 @@
    libre-nes. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LIBRE_NES_CART_H
-#define LIBRE_NES_CART_H
+#ifndef LIBRE_NES_CARTRIDGE_H
+#define LIBRE_NES_CARTRIDGE_H
 
 #include <stdint.h>
 
@@ -44,4 +44,4 @@ void cartridge_write(Cartrige *cart, uint16_t addr, uint8_t data);
 // Free the heap memory associated with the given cartridge
 void cartridge_free(Cartrige *cart);
 
-#endif // LIBRE_NES_CART_H
+#endif // LIBRE_NES_CARTRIDGE_H

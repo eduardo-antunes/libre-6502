@@ -16,15 +16,14 @@
    libre-nes. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LIBRE_NES_DECODER_H
-#define LIBRE_NES_DECODER_H
+#ifndef LIBRE_NES_CPU_DEFINITIONS_H
+#define LIBRE_NES_CPU_DEFINITIONS_H
 
-// Decoding logic for the 6502-like processor. It is best to decouple it from the
-// actual flow of execution of the CPU, as it is also useful for other stuff.
+// Type definitions that are used throughout the CPU related modules
 
 #include <stdint.h>
 
-// Enumeration representing the CPU addressing modes
+// Enumeration representing all CPU addressing modes
 typedef enum : uint8_t {
     MODE_IMPLIED     ,
     MODE_ACCUMULATOR ,
@@ -39,7 +38,7 @@ typedef enum : uint8_t {
     MODE_INDIRECT    ,
     MODE_INDIRECT_X  ,
     MODE_INDIRECT_Y  ,
-} Addressing;
+} Addressing_mode;
 
 // Enumeration representing the available CPU operations
 typedef enum : uint8_t {
@@ -65,18 +64,15 @@ typedef enum : uint8_t {
     BEQ, BNE, BCS, BCC, BMI, BPL, BVS, BVC,
     // Flag operations
     SEC, SEI, SED, CLC, CLI, CLD, CLV,
-    // System/symbolic operations
-    BRK, NOP, RTI, ERR,
+    // System operations
+    BRK, NOP, RTI, ERR
 } Operation;
 
 // Richer representation of a CPU instruction
 typedef struct {
+    uint8_t code;
     Operation op;
-    Addressing mode;
+    Addressing_mode mode;
 } Instruction;
 
-// Decode an 8-bit opcode, translating it into its correspoding CPU operation
-// and addressing mode. Key component of execution
-Instruction decode(uint8_t opcode);
-
-#endif // LIBRE_NES_DECODER_H
+#endif // LIBRE_NES_CPU_DEFINITIONS_H

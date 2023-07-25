@@ -18,10 +18,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
-
-#include "cart.h"
 #include "emulator.h"
-#include "disassembler.h"
 
 int main(int argc, char *argv[]) {
     if(argc < 2) {

@@ -1,11 +1,12 @@
-project('alt-libre-nes', 'c')
+project('libre-nes', 'c')
 inc_dir = include_directories('include')
 sources = files(
-  'src/main.c'         ,
-  'src/cart.c'         ,
-  'src/decoder.c'      ,
-  'src/emulator.c'     ,
-  'src/processor.c'    ,
-  'src/reader.c'       ,
+  'src/cpu/addressing.c' ,
+  'src/cpu/decoder.c'    ,
+  'src/cpu/processor.c'  ,
+  'src/cartridge.c'      ,
+  'src/emulator.c'       ,
+  'src/main.c'           ,
+  'src/reader.c'         ,
 )
 executable('libre-nes', sources, include_directories: inc_dir)

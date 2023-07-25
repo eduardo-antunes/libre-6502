@@ -23,7 +23,7 @@
 #include <assert.h>
 #include <stdbool.h>
 
-#include "cart.h"
+#include "cartridge.h"
 #include "reader.h"
 
 // Initialize a new cartridge, loading its contents from an external iNES file

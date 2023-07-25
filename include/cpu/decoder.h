@@ -16,12 +16,16 @@
    libre-nes. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LIBRE_NES_READER_H
-#define LIBRE_NES_READER_H
+#ifndef LIBRE_NES_CPU_DECODER_H
+#define LIBRE_NES_CPU_DECODER_H
 
-#include "cartridge.h"
+// Decoding logic for the 6502-like processor
 
-// Read an external iNES file, loading its contents into a cartridge
-void ines_read(const char *filepath, Cartrige *cart);
+#include <stdint.h>
+#include "cpu/definitions.h"
 
-#endif // LIBRE_NES_READER_H
+// Decode an 8-bit opcode, translating it into an operation-addressing mode
+// pair that can be more easily processed by the CPU
+Instruction decode(uint8_t opcode);
+
+#endif // LIBRE_NES_CPU_DECODER_H

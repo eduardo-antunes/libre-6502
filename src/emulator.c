@@ -21,10 +21,10 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "cpu/processor.h"
+#include "cartridge.h"
 #include "emulator.h"
-#include "processor.h"
 #include "reader.h"
-#include "cart.h"
 
 // Initialize the state of the emulator, loading an iNES rom file
 void emulator_init(Emulator *nes, const char *rom_filepath) {
