@@ -157,7 +157,8 @@ static void processor_sub(Processor *proc) {
 // General logic of the branching instructions
 static void branch(Processor *proc, Processor_flag flag, bool state) {
     bool f = get_flag(proc, flag);
-    if(f == state) proc->pc = get_address(proc);
+    uint16_t addr = get_address(proc);
+    if(f == state) proc->pc = addr;
 }
 
 // Run a single clock cycle of execution
@@ -471,7 +472,7 @@ void processor_clock(Processor *proc) {
         case BRK:
             // BRK: force an interrupt (IRQ), setting the BRK flag
             set_flag(proc, FLAG_BRK, true);
-            processor_interrupt(proc, true);
+            processor_interrupt(proc, INT_IRQ);
             break;
         case NOP:
             // NOP: do nothing

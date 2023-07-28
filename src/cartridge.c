@@ -42,7 +42,7 @@ void cartridge_resize(Cartridge *cart, uint8_t prg_banks, uint8_t chr_banks) {
     // Resize CHR ROM
     cart->chr_banks = chr_banks;
     cart->chr_size = chr_banks * CHR_BANK_SIZE;
-    cart->chr = (uint8_t*) realloc(cart->prg, cart->chr_size * sizeof(uint8_t));
+    cart->chr = (uint8_t*) realloc(cart->chr, cart->chr_size * sizeof(uint8_t));
     // Error handling
     if(cart->prg == NULL || cart->chr == NULL) {
         fprintf(stderr, "[!] Could not allocate sufficient memory for the cartridge\n");

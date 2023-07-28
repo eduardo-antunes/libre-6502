@@ -24,7 +24,6 @@
 #include "cpu/processor.h"
 #include "cartridge.h"
 #include "emulator.h"
-#include "reader.h"
 #include "ppu.h"
 
 // Initialize the state of the emulator, loading an iNES rom file
@@ -32,7 +31,6 @@ void emulator_init(Emulator *nes, const char *rom_filepath) {
     cartridge_init(&nes->cart, rom_filepath);
     processor_connect(&nes->proc, nes);
     ppu_connect(&nes->ppu, &nes->cart);
-    memset(nes->ram, 0, 2048);
 }
 
 // Start the emulator's operation
@@ -43,7 +41,7 @@ void emulator_start(Emulator *nes) {
     while(!quit) {
         processor_clock(&nes->proc);
         printf("Clock cycle #%d done. Continue? [y/n] ", i);
-        while(op != 'y' && op != 'n') op = getchar();
+        do op = getchar(); while(op != 'y' && op != 'n');
         if(op == 'n') quit = 1;
         ++i;
     }
@@ -55,12 +53,12 @@ uint8_t emulator_read(Emulator *nes, uint16_t addr) {
         // The main memory is mirrored throught this range
         return nes->ram[addr & 0x07FF];
     else if(addr >= 0x2000 && addr <= 0x3FFF)
-        // This range provides access to the PPU register, which provide a way
+        // This range provides access to the PPU registers, which provide a way
         // for the CPU to interact with and configure the PPU's operation
         return ppu_register_read(&nes->ppu, addr & 7);
     else if(addr >= 0x8000 && addr <= 0xFFFF)
         // This 32KiB range provides access to the contents of the cartridge
-        return cartridge_read(&nes->cart, addr - 0x4020);
+        return cartridge_read(&nes->cart, addr - 0x8000);
     return 0;
 }
 
