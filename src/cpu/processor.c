@@ -40,7 +40,7 @@ void processor_connect(Processor *proc, Emulator *nes) {
 }
 
 // Read a 16-bit address from the data bus
-static uint16_t read_address(const Emulator *nes, uint16_t addr) {
+static uint16_t read_address(Emulator *nes, uint16_t addr) {
     uint16_t address = emulator_read(nes, addr);
     address |= emulator_read(nes, addr + 1) << 8;
     return address;

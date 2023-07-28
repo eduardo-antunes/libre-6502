@@ -22,11 +22,13 @@
 #include <stdint.h>
 #include "cpu/processor.h"
 #include "cartridge.h"
+#include "ppu.h"
 
 // Structure representing the console itself, as well as the main data bus
 typedef struct nes {
-    Cartrige cart;     // the connected game cartrige
+    Cartridge cart;    // the connected game cartrige
     Processor proc;    // the 6502-like CPU
+    PPU ppu;           // the picture processing unit
     uint8_t ram[2048]; // 2KiB of main memory
 } Emulator;
 
@@ -37,7 +39,7 @@ void emulator_init(Emulator *nes, const char *rom_filepath);
 void emulator_start(Emulator *nes);
 
 // Read data from a particular address in the main bus
-uint8_t emulator_read(const Emulator *nes, uint16_t addr);
+uint8_t emulator_read(Emulator *nes, uint16_t addr);
 
 // Write data to a particular address in the main bus
 void emulator_write(Emulator *nes, uint16_t addr, uint8_t data);

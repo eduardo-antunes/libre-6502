@@ -24,13 +24,8 @@
 #include "reader.h"
 #include "cartridge.h"
 
-// Offsets for reading into the iNES file
-#define SIZE_OFFSET     4
-#define FLAGS_OFFSET    6
-#define PRG_CODE_OFFSET 16
-
 // Read an external iNES file, loading its contents into a cartridge
-void ines_read(const char *filepath, Cartrige *cart) {
+void ines_read(const char *filepath, Cartridge *cart) {
     // Open file for reading, binary mode
     FILE *rom = fopen(filepath, "rb");
     if(rom == NULL) {
@@ -47,25 +42,25 @@ void ines_read(const char *filepath, Cartrige *cart) {
         exit(2);
     }
 
-    // Read the PRG and CHR sizes, given in banks
-    fseek(rom, SIZE_OFFSET, SEEK_SET);
+    // Read the PRG and CHR rom sizes
     fread(&cart->prg_banks, sizeof(uint8_t), 1, rom);
     fread(&cart->chr_banks, sizeof(uint8_t), 1, rom);
     cart->prg_size = cart->prg_banks * PRG_BANK_SIZE;
     cart->chr_size = cart->chr_banks * CHR_BANK_SIZE;
 
-    // Read the mapper ID
+    // Read and process iNES flags (simplified for now)
     uint8_t f0, f1;
-    fseek(rom, FLAGS_OFFSET, SEEK_SET);
     fread(&f0, sizeof(uint8_t), 1, rom);
     fread(&f1, sizeof(uint8_t), 1, rom);
     cart->mapper_id = f0 >> 4;
-    cart->mapper_id |= f1 & 0xF0;
+    cart->mapper_id |= f0 & 0xF0;
+    fseek(rom, 16, SEEK_SET); // skip a couple bytes for now
 
-    // Read the code for the program
-    fseek(rom, PRG_CODE_OFFSET, SEEK_SET);
+    // Read PRG and CHR roms
     cart->prg = (uint8_t*) malloc(cart->prg_size * sizeof(uint8_t));
+    cart->chr = (uint8_t*) malloc(cart->chr_size * sizeof(uint8_t));
     fread(cart->prg, sizeof(uint8_t), cart->prg_size, rom);
+    fread(cart->chr, sizeof(uint8_t), cart->chr_size, rom);
 
     fclose(rom); // close the file
 }

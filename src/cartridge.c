@@ -27,13 +27,13 @@
 #include "reader.h"
 
 // Initialize a new cartridge, loading its contents from an external iNES file
-void cartridge_init(Cartrige *cart, const char *rom_filepath) {
+void cartridge_init(Cartridge *cart, const char *rom_filepath) {
     cart->prg = cart->chr = NULL;
     ines_read(rom_filepath, cart);
 }
 
-// Read data from the cartridge. The provided addresses go from 0x0000 to 0x7FFF
-uint8_t cartridge_read(const Cartrige *cart, uint16_t addr) {
+// Read data from the cartridge.
+uint8_t cartridge_read(const Cartridge *cart, uint16_t addr) {
     assert(cart->mapper_id == 0); // NROM #0 hardcoded
     if(addr >= 0x0000 && addr <= 0x3FFF) {
         return cart->prg[addr];
@@ -45,13 +45,25 @@ uint8_t cartridge_read(const Cartrige *cart, uint16_t addr) {
 }
 
 // Write data to the cartridge
-void cartridge_write(Cartrige *cart, uint16_t addr, uint8_t data) {
+void cartridge_write(Cartridge *cart, uint16_t addr, uint8_t data) {
     assert(cart->mapper_id == 0); // NROM #0 hardcoded
-    return; // all of the memory is ROM in NROM #0
+    return; // all memory is ROM in NROM #0
+}
+
+// Read data from the cartridge (PPU)
+uint8_t cartridge_ppu_read(const Cartridge *cart, uint16_t addr) {
+    assert(cart->mapper_id == 0); // NROM #0 hardcoded
+    return cart->chr[addr];
+}
+
+// Write data to the cartridge (PPU)
+void cartridge_ppu_write(Cartridge *cart, uint16_t addr, uint8_t data) {
+    assert(cart->mapper_id == 0); // NROM #0 hardcoded
+    return; // all memory is ROM in NROM #0
 }
 
 // Free the heap memory associated with the given cartridge
-void cartridge_free(Cartrige *cart) {
+void cartridge_free(Cartridge *cart) {
     free(cart->prg);
     free(cart->chr);
 }

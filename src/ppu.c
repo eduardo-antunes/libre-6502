@@ -16,12 +16,24 @@
    libre-nes. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LIBRE_NES_READER_H
-#define LIBRE_NES_READER_H
+#include <stdint.h>
+#include <string.h>
 
 #include "cartridge.h"
+#include "ppu.h"
 
-// Read an external iNES file, loading its contents into a cartridge
-void ines_read(const char *filepath, Cartridge *cart);
+// Connect the game cartridge to the PPU's independent bus
+void ppu_connect(PPU *ppu, Cartridge *cart) {
+    ppu->cart = cart;
+}
 
-#endif // LIBRE_NES_READER_H
+// Initialize/reset the state of the PPU
+void ppu_reset(PPU *ppu) {
+    memset(ppu->vram, 0, 2048);
+}
+
+// Read from a particular PPU register
+uint8_t ppu_register_read(PPU *ppu, uint8_t index);
+
+// Write to a particular PPU register
+void ppu_register_write(PPU *ppu, uint8_t index, uint8_t reg);
