@@ -32,6 +32,15 @@ typedef struct {
     uint8_t mapper_id;
 } Cartridge;
 
+// Create a new, empty cartridge, with no associated memory
+void cartridge_new(Cartridge *cart);
+
+// Update cartridge size information, resizing the PRG and CHR roms
+void cartridge_resize(Cartridge *cart, uint8_t prg_banks, uint8_t chr_banks);
+
+// Set the appropriate mapper for the cartridge
+void cartridge_set_mapper(Cartridge *cart, uint8_t mapper_id);
+
 // Initialize a new cartridge, loading its contents from an external iNES file
 void cartridge_init(Cartridge *cart, const char *rom_filepath);
 

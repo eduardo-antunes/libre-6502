@@ -26,9 +26,38 @@
 #include "cartridge.h"
 #include "reader.h"
 
+// Create a new, empty cartridge, with no associated memory
+void cartridge_new(Cartridge *cart) {
+    cart->prg = cart->chr = NULL;
+    cart->prg_size = cart->chr_size = 0;
+    cart->prg_banks = cart->chr_banks = 0;
+}
+
+// Update cartridge size information, resizing the PRG and CHR roms
+void cartridge_resize(Cartridge *cart, uint8_t prg_banks, uint8_t chr_banks) {
+    // Resize PRG ROM
+    cart->prg_banks = prg_banks;
+    cart->prg_size = prg_banks * PRG_BANK_SIZE;
+    cart->prg = (uint8_t*) realloc(cart->prg, cart->prg_size * sizeof(uint8_t));
+    // Resize CHR ROM
+    cart->chr_banks = chr_banks;
+    cart->chr_size = chr_banks * CHR_BANK_SIZE;
+    cart->chr = (uint8_t*) realloc(cart->prg, cart->chr_size * sizeof(uint8_t));
+    // Error handling
+    if(cart->prg == NULL || cart->chr == NULL) {
+        fprintf(stderr, "[!] Could not allocate sufficient memory for the cartridge\n");
+        exit(60);
+    }
+}
+
+// Set the appropriate mapper for the cartridge
+void cartridge_set_mapper(Cartridge *cart, uint8_t mapper_id) {
+    cart->mapper_id = mapper_id; // trust me, this will become more complex
+}
+
 // Initialize a new cartridge, loading its contents from an external iNES file
 void cartridge_init(Cartridge *cart, const char *rom_filepath) {
-    cart->prg = cart->chr = NULL;
+    cartridge_new(cart);
     ines_read(rom_filepath, cart);
 }
 

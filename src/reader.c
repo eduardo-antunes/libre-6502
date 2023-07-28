@@ -42,23 +42,21 @@ void ines_read(const char *filepath, Cartridge *cart) {
         exit(2);
     }
 
-    // Read the PRG and CHR rom sizes
-    fread(&cart->prg_banks, sizeof(uint8_t), 1, rom);
-    fread(&cart->chr_banks, sizeof(uint8_t), 1, rom);
-    cart->prg_size = cart->prg_banks * PRG_BANK_SIZE;
-    cart->chr_size = cart->chr_banks * CHR_BANK_SIZE;
+    // Read the PRG and CHR rom sizes and resize the cartridge
+    uint8_t prg_banks, chr_banks;
+    fread(&prg_banks, sizeof(uint8_t), 1, rom);
+    fread(&chr_banks, sizeof(uint8_t), 1, rom);
+    cartridge_resize(cart, prg_banks, chr_banks);
 
     // Read and process iNES flags (simplified for now)
-    uint8_t f0, f1;
+    uint8_t f0, f1, id;
     fread(&f0, sizeof(uint8_t), 1, rom);
     fread(&f1, sizeof(uint8_t), 1, rom);
-    cart->mapper_id = f0 >> 4;
-    cart->mapper_id |= f0 & 0xF0;
-    fseek(rom, 16, SEEK_SET); // skip a couple bytes for now
+    id = (f0 >> 4) | (f1 & 0xF0);
+    cartridge_set_mapper(cart, id);
 
     // Read PRG and CHR roms
-    cart->prg = (uint8_t*) malloc(cart->prg_size * sizeof(uint8_t));
-    cart->chr = (uint8_t*) malloc(cart->chr_size * sizeof(uint8_t));
+    fseek(rom, 16, SEEK_SET); // skip a couple bytes for now
     fread(cart->prg, sizeof(uint8_t), cart->prg_size, rom);
     fread(cart->chr, sizeof(uint8_t), cart->chr_size, rom);
 
