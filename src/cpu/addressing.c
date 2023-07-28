@@ -23,6 +23,20 @@
 #include "cpu/processor.h"
 #include "emulator.h"
 
+// Read an 8-bit value from the memory location specified by the PC register,
+// advancing it to the following location in the process
+static uint8_t read_forward(Processor *proc) {
+    return emulator_read(proc->nes, proc->pc++);
+}
+
+// Read a 16-bit address from the memory location specified by the PC register,
+// advancing it two locations forward in the process
+static uint16_t read_address_forward(Processor *proc) {
+    uint16_t address = emulator_read(proc->nes, proc->pc++);
+    address |= emulator_read(proc->nes, proc->pc++) << 8;
+    return address;
+}
+
 // Based on the current addressing mode, get an absolute address for the
 // current instruction to work with. Advances the PC
 uint16_t get_address(Processor *proc) {
@@ -38,50 +52,44 @@ uint16_t get_address(Processor *proc) {
             break;
         case MODE_ZEROPAGE:
             // A zero page address is stored in the following byte
-            addr = emulator_read(proc->nes, proc->pc++);
+            addr = read_forward(proc);
             break;
         case MODE_ZEROPAGE_X:
             // The contents of the x register are added to the zero page
             // address in the following byte to produce the final address
-            addr = (emulator_read(proc->nes, proc->pc++) + proc->x) & 0x00FF;
+            addr = (read_forward(proc) + proc->x) & 0xFF;
             break;
         case MODE_ZEROPAGE_Y:
             // The contents of the y register are added to the zero page
             // address in the following byte to produce the final address
-            addr = (emulator_read(proc->nes, proc->pc++) + proc->y) & 0x00FF;
+            addr = (read_forward(proc) + proc->x) & 0xFF;
             break;
         case MODE_RELATIVE:
             // Exclusive to branching instructions. The following byte contains
             // a signed jump offset, which should be added to the current value
             // of the PC (after reading the instruction) to get the raw address
-            addr = emulator_read(proc->nes, proc->pc++);
+            addr = read_forward(proc);
             if(addr & 0x80) addr |= 0xFF00; // sign extension
             addr += proc->pc;
             break;
         case MODE_ABSOLUTE:
             // The following two bytes contain an absolute, 16-bit address
-            addr = emulator_read(proc->nes, proc->pc++);
-            addr |= emulator_read(proc->nes, proc->pc++) << 8;
+            addr = read_address_forward(proc);
             break;
         case MODE_ABSOLUTE_X:
             // The following two bytes contain an absolute, 16-bit address,
             // which is to be added with the contents of the x register
-            addr = emulator_read(proc->nes, proc->pc++);
-            addr |= emulator_read(proc->nes, proc->pc++) << 8;
-            addr += proc->x;
+            addr = read_address_forward(proc) + proc->x;
             break;
         case MODE_ABSOLUTE_Y:
             // The following two bytes contain an absolute, 16-bit address,
             // which is to be added with the contents of the y register
-            addr = emulator_read(proc->nes, proc->pc++);
-            addr |= emulator_read(proc->nes, proc->pc++) << 8;
-            addr += proc->y;
+            addr = read_address_forward(proc) + proc->y;
             break;
         case MODE_INDIRECT:
             // The following two bytes contain a 16-bit pointer to the real
             // absolute address. NOTE this thing had a bug in the original CPU
-            ptr = emulator_read(proc->nes, proc->pc++);
-            ptr |= emulator_read(proc->nes, proc->pc++) << 8;
+            ptr = read_address_forward(proc);
             addr = emulator_read(proc->nes, ptr);
             // NOTE the original bug is reproduced by this line:
             ptr = (ptr & 0x00FF) == 0x00FF ? ptr & 0xFF00 : ptr + 1;
@@ -91,19 +99,17 @@ uint16_t get_address(Processor *proc) {
             // The following byte contains a zero page address, which is to be
             // added to the contents of the x register, with zero page wrap
             // around, to get a pointer to the real absolute address
-            ptr = emulator_read(proc->nes, proc->pc++);
-            ptr = (ptr + proc->x) & 0x00FF;
+            ptr = (read_forward(proc) + proc->x) & 0xFF;
             addr = emulator_read(proc->nes, ptr);
-            addr |= emulator_read(proc->nes, (ptr + 1) & 0x00FF) << 8;
+            addr |= emulator_read(proc->nes, (ptr + 1) & 0xFF) << 8;
             break;
         case MODE_INDIRECT_Y:
             // The following byte contains a zero page address, which is to be
             // added to the contents of the y register, with zero page wrap
             // around, to get a pointer to the real absolute address
-            ptr = emulator_read(proc->nes, proc->pc++);
-            ptr = (ptr + proc->y) & 0x00FF;
+            ptr = (read_forward(proc) + proc->x) & 0xFF;
             addr = emulator_read(proc->nes, ptr);
-            addr |= emulator_read(proc->nes, (ptr + 1) & 0x00FF) << 8;
+            addr |= emulator_read(proc->nes, (ptr + 1) & 0xFF) << 8;
             break;
         default:
             fprintf(stderr, "[!] Unrecognized addressing mode: %d\n",
@@ -128,7 +134,7 @@ uint8_t get_data(Processor *proc, uint16_t *address) {
             return proc->acc;
         case MODE_IMMEDIATE:
             // The data is the byte following the instruction
-            return emulator_read(proc->nes, proc->pc++);
+            return read_forward(proc);
         case MODE_RELATIVE:
             // It makes no sense to fetch data here, given that the only
             // instructions that use this are branching instructions, which
