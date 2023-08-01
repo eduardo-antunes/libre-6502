@@ -20,15 +20,16 @@
 #define LIBRE_NES_EMULATOR_H
 
 #include <stdint.h>
-#include "cpu/processor.h"
+
 #include "cartridge.h"
-#include "ppu.h"
+#include "cpu/processor.h"
+#include "picture/ppu.h"
 
 // Structure representing the console itself, as well as the main data bus
 typedef struct nes {
     Cartridge cart;    // the connected game cartrige
     Processor proc;    // the 6502-like CPU
-    PPU ppu;           // the picture processing unit
+    Picture_proc ppu;  // the picture processing unit
     uint8_t ram[2048]; // 2KiB of main memory
 } Emulator;
 

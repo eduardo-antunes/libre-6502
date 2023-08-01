@@ -16,24 +16,26 @@
    libre-nes. If not, see <https://www.gnu.org/licenses/>.
 */
 
+#ifndef LIBRE_NES_PICTURE_BUS_H
+#define LIBRE_NES_PICTURE_BUS_H
+
 #include <stdint.h>
-#include <string.h>
-
 #include "cartridge.h"
-#include "ppu.h"
 
-// Connect the game cartridge to the PPU's independent bus
-void ppu_connect(PPU *ppu, Cartridge *cart) {
-    ppu->cart = cart;
-}
+// Structure representing the independent PPU bus ("picture bus")
+typedef struct {
+    Cartridge *cart;     // the connected game cartridge
+    uint8_t vram[2048];  // 2KiB of video RAM (for nametables)
+    uint8_t pallete[32]; // pallete indexes
+} Picture_bus;
 
-// Initialize/reset the state of the PPU
-void ppu_reset(PPU *ppu) {
-    memset(ppu->vram, 0, 2048);
-}
+// Connect the game cartridge to the picture bus
+void picture_connect(Picture_bus *bus, Cartridge *cart);
 
-// Read from a particular PPU register
-uint8_t ppu_register_read(PPU *ppu, uint8_t index);
+// Read data from a particular address in the picture bus
+uint8_t picture_read(Picture_bus *bus, uint16_t addr);
 
-// Write to a particular PPU register
-void ppu_register_write(PPU *ppu, uint8_t index, uint8_t reg);
+// Write data to a particular address in the picture bus
+void picture_write(Picture_bus *bus, uint16_t addr, uint8_t data);
+
+#endif // LIBRE_NES_PICTURE_BUS_H

@@ -55,11 +55,11 @@ typedef struct {
     Instruction inst; // richer representation of the current instruction
 } Processor;
 
-// Connect the processor to the rest of the console
-void processor_connect(Processor *proc, Emulator *nes);
-
 // Initialize/reset the state of the CPU
 void processor_reset(Processor *proc);
+
+// Connect the processor to the rest of the console
+void processor_connect(Processor *proc, Emulator *nes);
 
 // Generate a CPU interruption (IRQ or NMI)
 void processor_interrupt(Processor *proc, Processor_int type);

@@ -21,16 +21,16 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "cpu/processor.h"
-#include "cartridge.h"
 #include "emulator.h"
-#include "ppu.h"
+#include "cartridge.h"
+#include "cpu/processor.h"
+#include "picture/ppu.h"
 
 // Initialize the state of the emulator, loading an iNES rom file
 void emulator_init(Emulator *nes, const char *rom_filepath) {
     cartridge_init(&nes->cart, rom_filepath);
     processor_connect(&nes->proc, nes);
-    ppu_connect(&nes->ppu, &nes->cart);
+    ppu_connect(&nes->ppu, nes);
 }
 
 // Start the emulator's operation
@@ -68,7 +68,7 @@ void emulator_write(Emulator *nes, uint16_t addr, uint8_t data) {
         // The main memory is mirrored throught this range
         nes->ram[addr & 0x07FF] = data;
     else if(addr >= 0x2000 && addr <= 0x3FFF)
-        // This range provides access to the PPU register, which provide a way
+        // This range provides access to the PPU registers, which provide a way
         // for the CPU to interact with and configure the PPU's operation
         ppu_register_write(&nes->ppu, addr & 7, data);
     else if(addr >= 0x8000 && addr <= 0xFFFF)
