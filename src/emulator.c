@@ -25,12 +25,15 @@
 #include "cartridge.h"
 #include "cpu/processor.h"
 #include "picture/ppu.h"
+#include "picture/screen.h"
 
 // Initialize the state of the emulator, loading an iNES rom file
-void emulator_init(Emulator *nes, const char *rom_filepath) {
+int emulator_init(Emulator *nes, const char *rom_filepath) {
     cartridge_init(&nes->cart, rom_filepath);
     processor_connect(&nes->proc, nes);
     ppu_connect(&nes->ppu, nes);
+    int err = screen_init(&nes->screen, "LIBRE-NES", 5);
+    return err;
 }
 
 // Start the emulator's operation
@@ -39,7 +42,7 @@ void emulator_start(Emulator *nes) {
     int quit = 0, i = 0;
     processor_reset(&nes->proc);
     while(!quit) {
-        processor_clock(&nes->proc);
+        processor_step(&nes->proc);
         printf("Clock cycle #%d done. Continue? [y/n] ", i);
         do op = getchar(); while(op != 'y' && op != 'n');
         if(op == 'n') quit = 1;

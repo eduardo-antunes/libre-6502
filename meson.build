@@ -12,8 +12,8 @@ sources = files(
   'src/picture/registers.c' ,
   'src/reader.c'            ,
 )
-#sdl2_dep = dependency('sdl2')
+sdl2_dep = dependency('sdl2')
 executable('libre-nes', sources,
   include_directories: inc_dir,
-  #dependencies: sdl2_dep,
+  dependencies: sdl2_dep,
 )

@@ -24,17 +24,19 @@
 #include "cartridge.h"
 #include "cpu/processor.h"
 #include "picture/ppu.h"
+#include "picture/screen.h"
 
 // Structure representing the console itself, as well as the main data bus
 typedef struct nes {
     Cartridge cart;    // the connected game cartrige
     Processor proc;    // the 6502-like CPU
     Picture_proc ppu;  // the picture processing unit
+    Screen screen;     // the virtual screen to render graphics to
     uint8_t ram[2048]; // 2KiB of main memory
 } Emulator;
 
 // Initialize the state of the emulator, loading an iNES rom file
-void emulator_init(Emulator *nes, const char *rom_filepath);
+int emulator_init(Emulator *nes, const char *rom_filepath);
 
 // Start the emulator's operation
 void emulator_start(Emulator *nes);

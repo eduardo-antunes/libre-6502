@@ -162,7 +162,7 @@ static void branch(Processor *proc, Processor_flag flag, bool state) {
 }
 
 // Run a single clock cycle of execution
-void processor_clock(Processor *proc) {
+void processor_step(Processor *proc) {
     uint8_t data, aux; uint16_t addr;
     uint8_t opcode = emulator_read(proc->nes, proc->pc++);
     proc->inst = decode(opcode);

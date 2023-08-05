@@ -65,6 +65,6 @@ void processor_connect(Processor *proc, Emulator *nes);
 void processor_interrupt(Processor *proc, Processor_int type);
 
 // Run a single clock cycle of execution
-void processor_clock(Processor *proc);
+void processor_step(Processor *proc);
 
 #endif // LIBRE_NES_CPU_PROCESSOR_H
