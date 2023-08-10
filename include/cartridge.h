@@ -21,9 +21,6 @@
 
 #include <stdint.h>
 
-#define PRG_BANK_SIZE 16384
-#define CHR_BANK_SIZE 8192
-
 // Structure representing a NES cartridge
 typedef struct {
     uint8_t *prg, *chr;
@@ -44,17 +41,17 @@ void cartridge_set_mapper(Cartridge *cart, uint8_t mapper_id);
 // Initialize a new cartridge, loading its contents from an external iNES file
 void cartridge_init(Cartridge *cart, const char *rom_filepath);
 
-// Read data from the cartridge
-uint8_t cartridge_read(const Cartridge *cart, uint16_t addr);
+// Read data from the cartridge PRG memory
+uint8_t cartridge_read_prg(const Cartridge *cart, uint16_t addr);
 
-// Write data to the cartridge
-void cartridge_write(Cartridge *cart, uint16_t addr, uint8_t data);
+// Write data to the cartridge PRG memory
+void cartridge_write_prg(Cartridge *cart, uint16_t addr, uint8_t data);
 
-// Read data from the cartridge (PPU)
-uint8_t cartridge_ppu_read(const Cartridge *cart, uint16_t addr);
+// Read data from the cartridge CHR memory
+uint8_t cartridge_read_chr(const Cartridge *cart, uint16_t addr);
 
-// Write data to the cartridge (PPU)
-void cartridge_ppu_write(Cartridge *cart, uint16_t addr, uint8_t data);
+// Write data to the cartridge CHR memory
+void cartridge_write_chr(Cartridge *cart, uint16_t addr, uint8_t data);
 
 // Free the heap memory associated with the given cartridge
 void cartridge_free(Cartridge *cart);

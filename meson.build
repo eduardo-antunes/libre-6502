@@ -9,7 +9,7 @@ sources = files(
   'src/main.c'              ,
   'src/picture/ppu.c'       ,
   'src/picture/bus.c'       ,
-  'src/picture/registers.c' ,
+  'src/picture/screen.c'    ,
   'src/reader.c'            ,
 )
 sdl2_dep = dependency('sdl2')

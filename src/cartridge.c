@@ -26,6 +26,9 @@
 #include "cartridge.h"
 #include "reader.h"
 
+#define PRG_BANK_SIZE 16384
+#define CHR_BANK_SIZE 8192
+
 // Create a new, empty cartridge, with no associated memory
 void cartridge_new(Cartridge *cart) {
     cart->prg = cart->chr = NULL;
@@ -61,8 +64,8 @@ void cartridge_init(Cartridge *cart, const char *rom_filepath) {
     ines_read(rom_filepath, cart);
 }
 
-// Read data from the cartridge.
-uint8_t cartridge_read(const Cartridge *cart, uint16_t addr) {
+// Read data from the cartridge PRG memory
+uint8_t cartridge_read_prg(const Cartridge *cart, uint16_t addr) {
     assert(cart->mapper_id == 0); // NROM #0 hardcoded
     if(addr >= 0x0000 && addr <= 0x3FFF) {
         return cart->prg[addr];
@@ -73,20 +76,20 @@ uint8_t cartridge_read(const Cartridge *cart, uint16_t addr) {
     return 0;
 }
 
-// Write data to the cartridge
-void cartridge_write(Cartridge *cart, uint16_t addr, uint8_t data) {
+// Write data to the cartridge PRG memory
+void cartridge_write_prg(Cartridge *cart, uint16_t addr, uint8_t data) {
     assert(cart->mapper_id == 0); // NROM #0 hardcoded
     return; // all memory is ROM in NROM #0
 }
 
-// Read data from the cartridge (PPU)
-uint8_t cartridge_ppu_read(const Cartridge *cart, uint16_t addr) {
+// Read data from the cartridge CHR memory
+uint8_t cartridge_read_chr(const Cartridge *cart, uint16_t addr) {
     assert(cart->mapper_id == 0); // NROM #0 hardcoded
     return cart->chr[addr];
 }
 
-// Write data to the cartridge (PPU)
-void cartridge_ppu_write(Cartridge *cart, uint16_t addr, uint8_t data) {
+// Write data to the cartridge CHR memory
+void cartridge_write_chr(Cartridge *cart, uint16_t addr, uint8_t data) {
     assert(cart->mapper_id == 0); // NROM #0 hardcoded
     return; // all memory is ROM in NROM #0
 }

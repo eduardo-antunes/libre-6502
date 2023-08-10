@@ -12,7 +12,7 @@ void picture_connect(Picture_bus *bus, Cartridge *cart) {
 uint8_t picture_read(Picture_bus *bus, uint16_t addr) {
     if(addr >= 0x0000 && addr <= 0x1FFF)
         // Pattern tables, stored in the game cartridge
-        return cartridge_ppu_read(bus->cart, addr);
+        return cartridge_read_chr(bus->cart, addr);
     else if(addr >= 0x2000 && addr <= 0x3EFF)
         // The 2KiB of video ram are mirrored throughout this range
         return bus->vram[addr & 0x0FFF];
@@ -26,7 +26,7 @@ uint8_t picture_read(Picture_bus *bus, uint16_t addr) {
 void picture_write(Picture_bus *bus, uint16_t addr, uint8_t data) {
     if(addr >= 0x0000 && addr <= 0x1FFF)
         // Pattern tables, stored in the game cartridge
-        cartridge_ppu_write(bus->cart, addr, data);
+        cartridge_write_chr(bus->cart, addr, data);
     else if(addr >= 0x2000 && addr <= 0x3EFF)
         // The 2KiB of video ram are mirrored throughout this range
         bus->vram[addr & 0x0FFF] = data;

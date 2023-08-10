@@ -58,10 +58,10 @@ uint8_t emulator_read(Emulator *nes, uint16_t addr) {
     else if(addr >= 0x2000 && addr <= 0x3FFF)
         // This range provides access to the PPU registers, which provide a way
         // for the CPU to interact with and configure the PPU's operation
-        return ppu_register_read(&nes->ppu, addr & 7);
+        return ppu_register_read(&nes->ppu, addr);
     else if(addr >= 0x8000 && addr <= 0xFFFF)
         // This 32KiB range provides access to the contents of the cartridge
-        return cartridge_read(&nes->cart, addr - 0x8000);
+        return cartridge_read_prg(&nes->cart, addr - 0x8000);
     return 0;
 }
 
@@ -73,10 +73,10 @@ void emulator_write(Emulator *nes, uint16_t addr, uint8_t data) {
     else if(addr >= 0x2000 && addr <= 0x3FFF)
         // This range provides access to the PPU registers, which provide a way
         // for the CPU to interact with and configure the PPU's operation
-        ppu_register_write(&nes->ppu, addr & 7, data);
+        ppu_register_write(&nes->ppu, addr, data);
     else if(addr >= 0x8000 && addr <= 0xFFFF)
         // This 32KiB range provides access to the contents of the cartridge
-        cartridge_write(&nes->cart, addr - 0x8000, data);
+        cartridge_write_prg(&nes->cart, addr - 0x8000, data);
 }
 
 // Free all heap memory associated with the emulator
