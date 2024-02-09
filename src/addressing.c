@@ -1,39 +1,39 @@
 /*
-   Copyright 2023 Eduardo Antunes S. Vieira <eduardoantunes986@gmail.com>
+   Copyright 2024 Eduardo Antunes S. Vieira <eduardoantunes986@gmail.com>
 
-   This file is part of libre-nes.
+   This file is part of libre-6502.
 
-   libre-nes is free software: you can redistribute it and/or modify it under
+   libre-6502 is free software: you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by the Free Software
    Foundation, either version 3 of the License, or (at your option) any later
    version.
 
-   libre-nes is distributed in the hope that it will be useful, but WITHOUT ANY
+   libre-6502 is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
    FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License along with
-   libre-nes. If not, see <https://www.gnu.org/licenses/>.
+   libre-6502. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include <stdio.h>
 #include <stdint.h>
 
-#include "cpu/addressing.h"
-#include "cpu/processor.h"
-#include "emulator.h"
+#include "addressing.h"
+#include "processor.h"
+#include "computer.h"
 
 // Read an 8-bit value from the memory location specified by the PC register,
 // advancing it to the following location in the process
 static uint8_t read_forward(Processor *proc) {
-    return emulator_read(proc->nes, proc->pc++);
+    return address_read(proc->c, proc->pc++);
 }
 
 // Read a 16-bit address from the memory location specified by the PC register,
 // advancing it two locations forward in the process
 static uint16_t read_address_forward(Processor *proc) {
-    uint16_t address = emulator_read(proc->nes, proc->pc++);
-    address |= emulator_read(proc->nes, proc->pc++) << 8;
+    uint16_t address = address_read(proc->c, proc->pc++);
+    address |= address_read(proc->c, proc->pc++) << 8;
     return address;
 }
 
@@ -90,26 +90,26 @@ uint16_t get_address(Processor *proc) {
             // The following two bytes contain a 16-bit pointer to the real
             // absolute address. NOTE this thing had a bug in the original CPU
             ptr = read_address_forward(proc);
-            addr = emulator_read(proc->nes, ptr);
+            addr = address_read(proc->c, ptr);
             // NOTE the original bug is reproduced by this line:
             ptr = (ptr & 0x00FF) == 0x00FF ? ptr & 0xFF00 : ptr + 1;
-            addr |= emulator_read(proc->nes, ptr) << 8;
+            addr |= address_read(proc->c, ptr) << 8;
             break;
         case MODE_INDIRECT_X:
             // The following byte contains a zero page address, which is to be
             // added to the contents of the x register, with zero page wrap
             // around, to get a pointer to the real absolute address
             ptr = (read_forward(proc) + proc->x) & 0xFF;
-            addr = emulator_read(proc->nes, ptr);
-            addr |= emulator_read(proc->nes, (ptr + 1) & 0xFF) << 8;
+            addr = address_read(proc->c, ptr);
+            addr |= address_read(proc->c, (ptr + 1) & 0xFF) << 8;
             break;
         case MODE_INDIRECT_Y:
             // The following byte contains a zero page address, which is to be
             // added to the contents of the y register, with zero page wrap
             // around, to get a pointer to the real absolute address
             ptr = (read_forward(proc) + proc->x) & 0xFF;
-            addr = emulator_read(proc->nes, ptr);
-            addr |= emulator_read(proc->nes, (ptr + 1) & 0xFF) << 8;
+            addr = address_read(proc->c, ptr);
+            addr |= address_read(proc->c, (ptr + 1) & 0xFF) << 8;
             break;
         default:
             fprintf(stderr, "[!] Unrecognized addressing mode: %d\n",
@@ -145,6 +145,6 @@ uint8_t get_data(Processor *proc, uint16_t *address) {
             // fetching an 8-bit value from the address they specify
             addr = get_address(proc);
             if(address != NULL) *address = addr;
-            return emulator_read(proc->nes, addr);
+            return address_read(proc->c, addr);
     }
 }

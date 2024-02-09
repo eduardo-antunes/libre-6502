@@ -1,19 +1,19 @@
 /*
-   Copyright 2023 Eduardo Antunes S. Vieira <eduardoantunes986@gmail.com>
+   Copyright 2024 Eduardo Antuc S. Vieira <eduardoantuc986@gmail.com>
 
-   This file is part of libre-nes.
+   This file is part of libre-6502.
 
-   libre-nes is free software: you can redistribute it and/or modify it under
+   libre-6502 is free software: you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by the Free Software
    Foundation, either version 3 of the License, or (at your option) any later
    version.
 
-   libre-nes is distributed in the hope that it will be useful, but WITHOUT ANY
+   libre-6502 is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
    FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License along with
-   libre-nes. If not, see <https://www.gnu.org/licenses/>.
+   libre-6502. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include <stdio.h>
@@ -21,10 +21,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "cpu/decoder.h"
-#include "cpu/processor.h"
-#include "cpu/addressing.h"
-#include "emulator.h"
+#include "decoder.h"
+#include "processor.h"
+#include "addressing.h"
+#include "computer.h"
 
 // Reset vectors' addresses
 #define NMI_VEC 0xFFFA
@@ -35,14 +35,14 @@
 #define STACK_BASE 0x0100
 
 // Connect the processor to the rest of the console
-void processor_connect(Processor *proc, Emulator *nes) {
-    proc->nes = nes;
+void processor_connect(Processor *proc, Computer *c) {
+    proc->c = c;
 }
 
 // Read a 16-bit address from the data bus
-static uint16_t read_address(Emulator *nes, uint16_t addr) {
-    uint16_t address = emulator_read(nes, addr);
-    address |= emulator_read(nes, addr + 1) << 8;
+static uint16_t read_address(Computer *c, uint16_t addr) {
+    uint16_t address = address_read(c, addr);
+    address |= address_read(c, addr + 1) << 8;
     return address;
 }
 
@@ -53,31 +53,31 @@ void processor_reset(Processor *proc) {
     proc->acc = 0;
     proc->sp = 0xFD;
     proc->status = 0x34; // IRQ starts disabled
-    proc->pc = read_address(proc->nes, RST_VEC);
+    proc->pc = read_address(proc->c, RST_VEC);
 }
 
-// NOTE: the stack grows downward and shrinks upward in the 6502
+// NOTE the stack grows downward and shrinks upward in the 6502
 
 // Push a byte to the stack in main memory
 static void stack_push(Processor *proc, uint8_t data) {
-    emulator_write(proc->nes, STACK_BASE | proc->sp--, data);
+    address_write(proc->c, STACK_BASE | proc->sp--, data);
 }
 
 // Push a 16-bit value to the stack in main memory
 static void stack_push16(Processor *proc, uint16_t word) {
-    emulator_write(proc->nes, STACK_BASE | proc->sp--, word & 0x00FF);
-    emulator_write(proc->nes, STACK_BASE | proc->sp--, word >> 8);
+    address_write(proc->c, STACK_BASE | proc->sp--, word & 0x00FF);
+    address_write(proc->c, STACK_BASE | proc->sp--, word >> 8);
 }
 
 // Pop/pull a byte from the stack in main memory
 static uint8_t stack_pull(Processor *proc) {
-    return emulator_read(proc->nes, STACK_BASE | ++proc->sp);
+    return address_read(proc->c, STACK_BASE | ++proc->sp);
 }
 
 // Pop/pull a 16-bit value from the stack in main memory
 static uint16_t stack_pull16(Processor *proc) {
-    uint16_t word = emulator_read(proc->nes, STACK_BASE | ++proc->sp) << 8;
-    word |= emulator_read(proc->nes, STACK_BASE | ++proc->sp);
+    uint16_t word = address_read(proc->c, STACK_BASE | ++proc->sp) << 8;
+    word |= address_read(proc->c, STACK_BASE | ++proc->sp);
     return word;
 }
 
@@ -108,7 +108,7 @@ void processor_interrupt(Processor *proc, Processor_int type) {
     stack_push16(proc, proc->pc);
     stack_push(proc, proc->status);
     set_flag(proc, FLAG_ID, true); // disable IRQ
-    proc->pc = read_address(proc->nes, type == INT_IRQ ? IRQ_VEC : NMI_VEC);
+    proc->pc = read_address(proc->c, type == INT_IRQ ? IRQ_VEC : NMI_VEC);
 }
 
 // Operation of addition in the processor
@@ -161,11 +161,10 @@ static void branch(Processor *proc, Processor_flag flag, bool state) {
     if(f == state) proc->pc = addr;
 }
 
-// Run a single clock cycle of execution
-void processor_step(Processor *proc) {
-    uint8_t data, aux; uint16_t addr;
-    uint8_t opcode = emulator_read(proc->nes, proc->pc++);
-    proc->inst = decode(opcode);
+// Execute a single instruction (it must have been read already)
+static void processor_execute(Processor *proc) {
+    uint16_t addr;
+    uint8_t data, aux;
     switch(proc->inst.op) {
         // Load and store operations:
         case LDA:
@@ -186,17 +185,17 @@ void processor_step(Processor *proc) {
         case STA:
             // STA: store the contents of the accumulator into the given address
             addr = get_address(proc);
-            emulator_write(proc->nes, addr, proc->acc);
+            address_write(proc->c, addr, proc->acc);
             break;
         case STX:
             // STX: store the contents of the x register into the given address
             addr = get_address(proc);
-            emulator_write(proc->nes, addr, proc->x);
+            address_write(proc->c, addr, proc->x);
             break;
         case STY:
             // STY: store the contents of the y register into the given address
             addr = get_address(proc);
-            emulator_write(proc->nes, addr, proc->y);
+            address_write(proc->c, addr, proc->y);
             break;
         // Register transfer operations:
         case TAX:
@@ -308,7 +307,7 @@ void processor_step(Processor *proc) {
         case INC:
             // INC: increment the memory location at the given address
             data = get_data(proc, &addr);
-            emulator_write(proc->nes, addr, data + 1);
+            address_write(proc->c, addr, data + 1);
             set_zn(proc, data + 1);
             break;
         case INX:
@@ -323,7 +322,7 @@ void processor_step(Processor *proc) {
         case DEC:
             // DEC: decrement the memory location at the given address
             data = get_data(proc, &addr);
-            emulator_write(proc->nes, addr, data - 1);
+            address_write(proc->c, addr, data - 1);
             set_zn(proc, data + 1);
             break;
         case DEX:
@@ -343,7 +342,7 @@ void processor_step(Processor *proc) {
             data <<= 1;
             set_zn(proc, data);
             if(proc->inst.mode != MODE_ACCUMULATOR)
-                emulator_write(proc->nes, addr, data);
+                address_write(proc->c, addr, data);
             else
                 proc->acc = data;
             break;
@@ -355,7 +354,7 @@ void processor_step(Processor *proc) {
             data >>= 1;
             set_zn(proc, data);
             if(proc->inst.mode != MODE_ACCUMULATOR)
-                emulator_write(proc->nes, addr, data);
+                address_write(proc->c, addr, data);
             else
                 proc->acc = data;
             break;
@@ -370,7 +369,7 @@ void processor_step(Processor *proc) {
             set_flag(proc, FLAG_CARRY, aux);
             set_zn(proc, data);
             if(proc->inst.mode != MODE_ACCUMULATOR)
-                emulator_write(proc->nes, addr, data);
+                address_write(proc->c, addr, data);
             else
                 proc->acc = data;
             break;
@@ -385,7 +384,7 @@ void processor_step(Processor *proc) {
             set_flag(proc, FLAG_CARRY, aux);
             set_zn(proc, data);
             if(proc->inst.mode != MODE_ACCUMULATOR)
-                emulator_write(proc->nes, addr, data);
+                address_write(proc->c, addr, data);
             else
                 proc->acc = data;
             break;
@@ -487,7 +486,21 @@ void processor_step(Processor *proc) {
         case ERR:
             // ERR: indicative of a decoder error, reported by the decoder itself
             break;
-        default:
-            fprintf(stderr, "[!] Invalid opcode: %02X\n", opcode);
     }
+}
+
+// Run a single clock cycle of execution
+void processor_step(Processor *proc) {
+    uint8_t opcode = address_read(proc->c, proc->pc++);
+    proc->inst = decode(opcode);
+    processor_execute(proc);
+}
+
+// Run a single clock cycle of execution (debugging version)
+void processor_step_debug(Processor *proc) {
+    uint8_t opcode = address_read(proc->c, proc->pc++);
+    proc->inst = decode(opcode);
+    printf("Read opcode: %02X\nInstruction code: %d\nAddressing mode code: %d\n",
+        opcode, proc->inst.op, proc->inst.mode);
+    processor_execute(proc);
 }

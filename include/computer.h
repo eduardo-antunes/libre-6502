@@ -16,13 +16,28 @@
    libre-6502. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <stdio.h>
-#include "computer.h"
+#ifndef LIBRE_6502_COMPUTER_H
+#define LIBRE_6502_COMPUTER_H
 
-int main() {
-    printf("Oh my gahd!\n");
-    Computer com;
-    computer_init(&com);
-    computer_start(&com);
-    return 0;
-}
+#include <stdint.h>
+#include "processor.h"
+
+// Structure representing the simulated computer
+typedef struct c {
+    Processor proc;    // 6502 CPU
+    uint8_t ram[2048]; // 2KiB of main memory
+} Computer;
+
+// Initialize the state of the computer
+void computer_init(Computer *c);
+
+// Start the computer, running the CPU at a consistent frequency
+void computer_start(Computer *c);
+
+// Read data from a particular address in the main bus
+uint8_t address_read(Computer *c, uint16_t addr);
+
+// Write data to a particular address in the main bus
+void address_write(Computer *c, uint16_t addr, uint8_t data);
+
+#endif // LIBRE_6502_COMPUTER_H

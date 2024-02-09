@@ -1,31 +1,30 @@
 /*
-   Copyright 2023 Eduardo Antunes S. Vieira <eduardoantunes986@gmail.com>
+   Copyright 2024 Eduardo Antunes S. Vieira <eduardoantunes986@gmail.com>
 
-   This file is part of libre-nes.
+   This file is part of libre-6502.
 
-   libre-nes is free software: you can redistribute it and/or modify it under
+   libre-6502 is free software: you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by the Free Software
    Foundation, either version 3 of the License, or (at your option) any later
    version.
 
-   libre-nes is distributed in the hope that it will be useful, but WITHOUT ANY
+   libre-6502 is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
    FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License along with
-   libre-nes. If not, see <https://www.gnu.org/licenses/>.
+   libre-6502. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LIBRE_NES_CPU_PROCESSOR_H
-#define LIBRE_NES_CPU_PROCESSOR_H
+#ifndef LIBRE_6502_PROCESSOR_H
+#define LIBRE_6502_PROCESSOR_H
 
-// Software reproduction of the 6502-like processor used by the original NES
-// console. It differs from the standard 6502 primarily in its lack of support
-// for decimal mode, as far as I understand.
+// The main implementation of the 6502 processor. It lacks only the decimal
+// mode, which I plan on adding in the near future
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "cpu/definitions.h"
+#include "definitions.h"
 
 // Enumeration representing the CPU flags
 typedef enum : uint8_t {
@@ -42,11 +41,11 @@ typedef enum : uint8_t {
 // Enumeration representing types of interrupts
 typedef enum : uint8_t { INT_IRQ, INT_NMI } Processor_int;
 
-typedef struct nes Emulator; // forward declaration
+typedef struct c Computer; // forward declaration
 
 // Structure representing the CPU's current state
 typedef struct {
-    Emulator *nes;    // reference to the outside world
+    Computer *c;      // reference to the outside world
     uint16_t pc;      // program counter, to control the flow of execution
     uint8_t x, y;     // index registers, to hold counters and offsets
     uint8_t acc;      // accumulator register, for arithmetic and logic
@@ -58,8 +57,8 @@ typedef struct {
 // Initialize/reset the state of the CPU
 void processor_reset(Processor *proc);
 
-// Connect the processor to the rest of the console
-void processor_connect(Processor *proc, Emulator *nes);
+// Connect the processor to the rest of the computer
+void processor_connect(Processor *proc, Computer *c);
 
 // Generate a CPU interruption (IRQ or NMI)
 void processor_interrupt(Processor *proc, Processor_int type);
@@ -67,4 +66,7 @@ void processor_interrupt(Processor *proc, Processor_int type);
 // Run a single clock cycle of execution
 void processor_step(Processor *proc);
 
-#endif // LIBRE_NES_CPU_PROCESSOR_H
+// Run a single clock cycle of execution (debugging version)
+void processor_step_debug(Processor *proc);
+
+#endif // LIBRE_6502_PROCESSOR_H

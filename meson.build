@@ -1,19 +1,12 @@
-project('libre-nes', 'c')
+project('libre-6502', 'c')
 inc_dir = include_directories('include')
 sources = files(
-  'src/cartridge.c'         ,
-  'src/cpu/addressing.c'    ,
-  'src/cpu/decoder.c'       ,
-  'src/cpu/processor.c'     ,
-  'src/emulator.c'          ,
-  'src/main.c'              ,
-  'src/picture/ppu.c'       ,
-  'src/picture/bus.c'       ,
-  'src/picture/screen.c'    ,
-  'src/reader.c'            ,
+  'src/addressing.c',
+  'src/decoder.c',
+  'src/processor.c',
+  'src/computer.c',
+  'src/main.c',
 )
-sdl2_dep = dependency('sdl2')
-executable('libre-nes', sources,
+executable('libre-6502', sources,
   include_directories: inc_dir,
-  dependencies: sdl2_dep,
 )

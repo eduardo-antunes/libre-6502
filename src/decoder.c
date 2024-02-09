@@ -1,27 +1,27 @@
 /*
-   Copyright 2023 Eduardo Antunes S. Vieira <eduardoantunes986@gmail.com>
+   Copyright 2024 Eduardo Antunes S. Vieira <eduardoantunes986@gmail.com>
 
-   This file is part of libre-nes.
+   This file is part of libre-6502.
 
-   libre-nes is free software: you can redistribute it and/or modify it under
+   libre-6502 is free software: you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by the Free Software
    Foundation, either version 3 of the License, or (at your option) any later
    version.
 
-   libre-nes is distributed in the hope that it will be useful, but WITHOUT ANY
+   libre-6502 is distributed in the hope that it will be useful, but WITHOUT ANY
    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
    FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License along with
-   libre-nes. If not, see <https://www.gnu.org/licenses/>.
+   libre-6502. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "cpu/definitions.h"
-#include "cpu/decoder.h"
+#include "definitions.h"
+#include "decoder.h"
 
 // Lookup tables for operations and modes
 
