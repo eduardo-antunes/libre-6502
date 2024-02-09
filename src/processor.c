@@ -25,6 +25,7 @@
 #include "processor.h"
 #include "addressing.h"
 #include "computer.h"
+#include "disassembler.h"
 
 // Reset vectors' addresses
 #define NMI_VEC 0xFFFA
@@ -500,7 +501,7 @@ void processor_step(Processor *proc) {
 void processor_step_debug(Processor *proc) {
     uint8_t opcode = address_read(proc->c, proc->pc++);
     proc->inst = decode(opcode);
-    printf("Read opcode: %02X\nInstruction code: %d\nAddressing mode code: %d\n",
-        opcode, proc->inst.op, proc->inst.mode);
+    printf("Read opcode: %02X\nIn assembly: ", opcode);
+    disassemble_step(proc);
     processor_execute(proc);
 }

@@ -25,19 +25,19 @@
 
 // Enumeration representing all CPU addressing modes
 typedef enum : uint8_t {
-    MODE_IMPLIED     ,
-    MODE_ACCUMULATOR ,
-    MODE_IMMEDIATE   ,
-    MODE_ZEROPAGE    ,
-    MODE_ZEROPAGE_X  ,
-    MODE_ZEROPAGE_Y  ,
-    MODE_RELATIVE    ,
-    MODE_ABSOLUTE    ,
-    MODE_ABSOLUTE_X  ,
-    MODE_ABSOLUTE_Y  ,
-    MODE_INDIRECT    ,
-    MODE_INDIRECT_X  ,
-    MODE_INDIRECT_Y  ,
+    MODE_IMPLIED,
+    MODE_ACCUMULATOR,
+    MODE_IMMEDIATE,
+    MODE_ZEROPAGE,
+    MODE_ZEROPAGE_X,
+    MODE_ZEROPAGE_Y,
+    MODE_RELATIVE,
+    MODE_ABSOLUTE,
+    MODE_ABSOLUTE_X,
+    MODE_ABSOLUTE_Y,
+    MODE_INDIRECT,
+    MODE_INDIRECT_X,
+    MODE_INDIRECT_Y,
 } Addressing_mode;
 
 // Enumeration representing the available CPU operations
