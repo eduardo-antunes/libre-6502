@@ -19,25 +19,25 @@
 #ifndef LIBRE_6502_DEFINITIONS_H
 #define LIBRE_6502_DEFINITIONS_H
 
-// Type definitions that are used throughout the CPU related modules
+// Type definitions that are used throughout libre-6502
 
 #include <stdint.h>
 
 // Enumeration representing all CPU addressing modes
 typedef enum : uint8_t {
-    MODE_IMPLIED,
-    MODE_ACCUMULATOR,
-    MODE_IMMEDIATE,
-    MODE_ZEROPAGE,
-    MODE_ZEROPAGE_X,
-    MODE_ZEROPAGE_Y,
-    MODE_RELATIVE,
-    MODE_ABSOLUTE,
-    MODE_ABSOLUTE_X,
-    MODE_ABSOLUTE_Y,
-    MODE_INDIRECT,
-    MODE_INDIRECT_X,
-    MODE_INDIRECT_Y,
+    MODE_IMPLIED = 0   ,
+    MODE_ACCUMULATOR   ,
+    MODE_IMMEDIATE     ,
+    MODE_ZEROPAGE      ,
+    MODE_ZEROPAGE_X    ,
+    MODE_ZEROPAGE_Y    ,
+    MODE_RELATIVE      ,
+    MODE_ABSOLUTE      ,
+    MODE_ABSOLUTE_X    ,
+    MODE_ABSOLUTE_Y    ,
+    MODE_INDIRECT      ,
+    MODE_INDIRECT_X    ,
+    MODE_INDIRECT_Y    ,
 } Addressing_mode;
 
 // Enumeration representing the available CPU operations
@@ -70,7 +70,6 @@ typedef enum : uint8_t {
 
 // Richer representation of a CPU instruction
 typedef struct {
-    uint8_t code;
     Operation op;
     Addressing_mode mode;
 } Instruction;

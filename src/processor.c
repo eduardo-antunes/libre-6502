@@ -488,6 +488,7 @@ static void processor_execute(Processor *proc) {
             // ERR: indicative of a decoder error, reported by the decoder itself
             break;
     }
+    proc->pc += get_inc(proc); // advance to the next instruction
 }
 
 // Run a single clock cycle of execution
@@ -502,6 +503,6 @@ void processor_step_debug(Processor *proc) {
     uint8_t opcode = address_read(proc->c, proc->pc++);
     proc->inst = decode(opcode);
     printf("Read opcode: %02X\nIn assembly: ", opcode);
-    disassemble_step(proc);
+    disassemble(proc);
     processor_execute(proc);
 }

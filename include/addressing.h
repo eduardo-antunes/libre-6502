@@ -29,23 +29,17 @@
 #include "processor.h"
 
 // Based on the current addressing mode, get an absolute address for the
-// current instruction to work with. Advances the PC
-uint16_t get_address(Processor *proc);
-
-// The same as get_address, but does not advance the PC. Instead, it tells
-// the caller how much it should be incremented via the inc_pc parameter
-uint16_t get_address_static(const Processor *proc, uint8_t *inc_pc);
+// current instruction to work with. Does not advance the PC!
+uint16_t get_address(const Processor *proc);
 
 // Based on the current addressing mode, get an 8-bit value for the current
-// instruction to work with. Calls get_address internally and thus also
-// advances the PC. If the caller also needs the result of the call to
-// get_address, which happens in instructions that modify memory locations, it
-// can optionally get it through the address pointer
-uint8_t get_data(Processor *proc, uint16_t *address);
+// instruction to work with. Calls get_address internally and thus also does
+// not advance the PC. If the caller also needs the address that corresponds
+// to the data, they may optionally get it through the address parameter
+uint8_t get_data(const Processor *proc, uint16_t *address);
 
-// The same as get_data, but does not advance the PC. Instead, it tells
-// the caller how much it should be incremented via the inc_pc parameter
-uint8_t get_data_static(const Processor *proc, uint16_t *address,
-    uint8_t *inc_pc);
+// Based on the current addressing mode, determine by how much the PC should
+// be incremented to get to the next instruction
+uint8_t get_inc(const Processor *proc);
 
 #endif // LIBRE_6502_ADDRESSING_H

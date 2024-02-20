@@ -19,6 +19,7 @@
 #ifndef LIBRE_6502_COMPUTER_H
 #define LIBRE_6502_COMPUTER_H
 
+#include <stddef.h>
 #include <stdint.h>
 #include "processor.h"
 
@@ -30,6 +31,9 @@ typedef struct c {
 
 // Initialize the state of the computer
 void computer_init(Computer *c);
+
+// Load some machine code into memory
+void computer_load_prog(Computer *c, uint8_t code[], size_t n);
 
 // Start the computer, running the CPU at a consistent frequency
 void computer_start(Computer *c);

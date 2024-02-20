@@ -18,13 +18,25 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stddef.h>
 
 #include "computer.h"
 #include "processor.h"
 
+// Temporarily hardcoded program start
+#define PROG_START 0x0100
+
 // Initialize the state of the computer
 void computer_init(Computer *c) {
     processor_connect(&c->proc, c);
+}
+
+// Load some machine code into memory
+void computer_load_prog(Computer *c, uint8_t code[], size_t n) {
+    for(size_t i = 0; i < n; ++i)
+        c->ram[PROG_START + i] = code[i];
+    address_write(c, 0xFFFC, 0x00);
+    address_write(c, 0xFFFD, 0x01);
 }
 
 // Start the computer, running the CPU at a consistent frequency

@@ -24,8 +24,7 @@
 #include "processor.h"
 
 // Disassemble a single instruction; requires a reference to the processor
-// to read the instruction's argument from memory. Returns by how much the
-// PC must be incremented to go to the next instruction
-int disassemble_step(const Processor *proc);
+// to read the instruction's argument from memory
+void disassemble(const Processor *proc);
 
 #endif // LIBRE_6502_DISASSEMBLER_H

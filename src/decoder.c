@@ -23,9 +23,8 @@
 #include "definitions.h"
 #include "decoder.h"
 
-// Lookup tables for operations and modes
-
-static const Operation op_table[][8] = {
+// Lookup tables for operations, based on groups
+static Operation op_table[][8] = {
     // Group 1 operations
     [0] = { [0] = ORA, [1] = AND, [2] = EOR, [3] = ADC,
             [4] = STA, [5] = LDA, [6] = CMP, [7] = SBC, },
@@ -37,7 +36,8 @@ static const Operation op_table[][8] = {
             [5] = LDY, [6] = CPY, [7] = CPX, },
 };
 
-static const Addressing_mode mode_table[][8] = {
+// Lookup tables for addressing modes, based on groups
+static Addressing_mode mode_table[][8] = {
     // Group 1 modes
     [0] = { [0] = MODE_INDIRECT_X,  [1] = MODE_ZEROPAGE,
             [2] = MODE_IMMEDIATE,   [3] = MODE_ABSOLUTE,
@@ -60,7 +60,7 @@ static void error(Instruction *inst, uint8_t opcode, const char *context) {
 // pair that can be more easily processed by the CPU
 Instruction decode(uint8_t opcode) {
     bool basic = true;
-    Instruction inst = { .code = opcode, .op = NOP, .mode = MODE_IMPLIED };
+    Instruction inst = { .op = NOP, .mode = MODE_IMPLIED };
     // A select group of instructions are best decoded via a simple switch-case.
     // Most of these use the implied addressing mode. The one exception is the
     // JSR instruction, which uses absolute addressing.

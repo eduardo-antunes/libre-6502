@@ -51,7 +51,7 @@ typedef struct {
     uint8_t acc;      // accumulator register, for arithmetic and logic
     uint8_t status;   // status register, to store a set of CPU flags
     uint8_t sp;       // stack pointer, to point to the top of the stack in RAM
-    Instruction inst; // richer representation of the current instruction
+    Instruction inst; // better representation of the current instruction
 } Processor;
 
 // Initialize/reset the state of the CPU

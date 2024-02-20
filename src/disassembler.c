@@ -23,7 +23,7 @@
 #include "definitions.h"
 #include "processor.h"
 
-// Text representation table for the 6502 instructions
+// Text representation table for the 6502 instructions (mnemonics)
 static const char *op_text[] = {
     // Load and store operations
     [LDA] = "lda", [LDX] = "ldx", [LDY] = "ldy",
@@ -79,15 +79,15 @@ static const char *arg_format[] = {
 
 // Disassemble a single instruction; requires a reference to the processor
 // to read the instruction's argument from memory
-int disassemble_step(const Processor *proc) {
-    uint8_t inc = 0;
+void disassemble(const Processor *proc) {
     printf("%s", op_text[proc->inst.op]);
-    if(proc->inst.mode != MODE_IMPLIED && proc->inst.mode != MODE_ACCUMULATOR) {
+    if(proc->inst.mode == MODE_ACCUMULATOR) {
+        printf(" A");
+    } else if(proc->inst.mode != MODE_IMPLIED) {
         // If not in those modes, there is some argument to be printed
         uint16_t arg = (proc->inst.mode == MODE_IMMEDIATE) ?
-            get_data_static(proc, NULL, &inc) : get_address_static(proc, &inc);
+            get_data(proc, NULL) : get_address(proc);
         printf(arg_format[proc->inst.mode], arg);
     }
     printf("\n");
-    return inc;
 }

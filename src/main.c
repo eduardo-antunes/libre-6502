@@ -16,13 +16,19 @@
    libre-6502. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <stdio.h>
 #include "computer.h"
+#include <stdint.h>
 
 int main() {
-    printf("Oh my gahd!\n");
-    Computer com;
-    computer_init(&com);
-    computer_start(&com);
+    Computer c;
+    computer_init(&c);
+    uint8_t code[] = {
+        0xA9, 0x05, // lda #5
+        0xA2, 0x10, // lxd #16
+        0x18,       // clc
+        0x69, 0x11, // adc #17
+    };
+    computer_load_prog(&c, code, 7);
+    computer_start(&c);
     return 0;
 }
