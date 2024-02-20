@@ -19,49 +19,70 @@
 #ifndef LIBRE_6502_PROCESSOR_H
 #define LIBRE_6502_PROCESSOR_H
 
-// The main implementation of the 6502 processor. It lacks only the decimal
-// mode, which I plan on adding in the near future
+// Address for the so-called reset vectors. They should themselves point to
+// other address to which the execution should jump to in case of a non-
+// maskable interrupt, an interrupt request and a reset, respectively
+#define NMI_VECTOR   0xFFFA
+#define IRQ_VECTOR   0xFFFE
+#define RESET_VECTOR 0xFFFC
+
+// The core 6502 implementation. It can be connected to any arbitrary address
+// space via two user-defined functions which read and write to it. In addition,
+// a userdata pointer can be provided to keep track of the state of the space.
+// This pointer is taken by the read and write functions. I think this will
+// probably always be needed.
 
 #include <stdint.h>
 #include <stdbool.h>
 #include "definitions.h"
 
-// Enumeration representing the CPU flags
+// Signatures for address readers and writers
+typedef uint8_t (*AddrReader)(void *userdata, uint16_t address);
+typedef void    (*AddrWriter)(void *userdata, uint16_t address, uint8_t data);
+
+// The various CPU flags, stored in the status register. Their purpose is
+// twofold: first, they communicate to the running program information on the
+// instruction previously executed. Second, they can be set to affect future
+// instructions and hardware behavior.
 typedef enum : uint8_t {
     FLAG_CARRY    = (1 << 0), // indicates carry in adition, borrow in subtraction
-    FLAG_ZERO     = (1 << 1), // indicates the last value dealt with was 0
+    FLAG_ZERO     = (1 << 1), // indicates that the last value dealt with was 0
     FLAG_ID       = (1 << 2), // determines whether maskable interrupts (IRQ) are disabled
-    FLAG_DEC      = (1 << 3), // determines if the CPU is in decimal mode, no effect in the NES
+    FLAG_DEC      = (1 << 3), // determines if the CPU is in decimal mode (BCD)
     FLAG_BRK      = (1 << 4), // for internal usage by the hardware only
     FLAG_NIL      = (1 << 5), // unused
     FLAG_OVERFLOW = (1 << 6), // indicates an overflow happened in the last arithmetic operation
     FLAG_NEGATIVE = (1 << 7), // indicates the last value dealt with was negative
 } Processor_flag;
 
-// Enumeration representing types of interrupts
-typedef enum : uint8_t { INT_IRQ, INT_NMI } Processor_int;
-
-typedef struct c Computer; // forward declaration
-
-// Structure representing the CPU's current state
+// Structure representing the CPU's state and metadata
 typedef struct {
-    Computer *c;      // reference to the outside world
+    // Hardware registers
     uint16_t pc;      // program counter, to control the flow of execution
     uint8_t x, y;     // index registers, to hold counters and offsets
     uint8_t acc;      // accumulator register, for arithmetic and logic
-    uint8_t status;   // status register, to store a set of CPU flags
+    uint8_t status;   // status register, to store the set of CPU flags
     uint8_t sp;       // stack pointer, to point to the top of the stack in RAM
-    Instruction inst; // better representation of the current instruction
+
+    // Metadata used by the library
+    void *u;          // custom userdata, passed to read and write functions
+    AddrReader read;  // read from addresses (user-provided)
+    AddrWriter write; // write to addresses (user-provided)
+    Instruction inst; // representation of the current instruction
 } Processor;
 
-// Initialize/reset the state of the CPU
+// Initializes a new processor instance, connecting it to its address space
+void processor_init(Processor *proc, AddrReader read,
+    AddrWriter write, void *userdata);
+
+// Reset the CPU, reinitializing its state
 void processor_reset(Processor *proc);
 
-// Connect the processor to the rest of the computer
-void processor_connect(Processor *proc, Computer *c);
+// Request a CPU interruption (IRQ)
+void processor_request(Processor *proc);
 
-// Generate a CPU interruption (IRQ or NMI)
-void processor_interrupt(Processor *proc, Processor_int type);
+// Generate a non-maskable CPU interruption (NMI)
+void processor_interrupt(Processor *proc);
 
 // Run a single clock cycle of execution
 void processor_step(Processor *proc);

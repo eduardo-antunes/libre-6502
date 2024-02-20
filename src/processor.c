@@ -24,62 +24,41 @@
 #include "decoder.h"
 #include "processor.h"
 #include "addressing.h"
-#include "computer.h"
-#include "disassembler.h"
+#include "debug.h"
 
-// Reset vectors' addresses
-#define NMI_VEC 0xFFFA
-#define RST_VEC 0xFFFC
-#define IRQ_VEC 0xFFFE
-
-// Base address of the stack in RAM. It is confined to page #01
+// Base address of the stack. It is confined to page #01, and its primary use
+// is to store return addresses (though it can be used for arbitrary data
+// storage). It grows downward and shrinks upward
 #define STACK_BASE 0x0100
 
-// Connect the processor to the rest of the console
-void processor_connect(Processor *proc, Computer *c) {
-    proc->c = c;
-}
-
-// Read a 16-bit address from the data bus
-static uint16_t read_address(Computer *c, uint16_t addr) {
-    uint16_t address = address_read(c, addr);
-    address |= address_read(c, addr + 1) << 8;
-    return address;
-}
-
-// Initialize/reset the state of the CPU
-void processor_reset(Processor *proc) {
-    proc->x = 0;
-    proc->y = 0;
-    proc->acc = 0;
-    proc->sp = 0xFD;
-    proc->status = 0x34; // IRQ starts disabled
-    proc->pc = read_address(proc->c, RST_VEC);
-}
-
-// NOTE the stack grows downward and shrinks upward in the 6502
-
 // Push a byte to the stack in main memory
-static void stack_push(Processor *proc, uint8_t data) {
-    address_write(proc->c, STACK_BASE | proc->sp--, data);
+static void stack_push(Processor *proc, uint8_t u) {
+    proc->write(proc->u, STACK_BASE | proc->sp--, u);
 }
 
 // Push a 16-bit value to the stack in main memory
-static void stack_push16(Processor *proc, uint16_t word) {
-    address_write(proc->c, STACK_BASE | proc->sp--, word & 0x00FF);
-    address_write(proc->c, STACK_BASE | proc->sp--, word >> 8);
+static void stack_push16(Processor *proc, uint16_t w) {
+    proc->write(proc->u, STACK_BASE | proc->sp--, w & 0x00FF);
+    proc->write(proc->u, STACK_BASE | proc->sp--, w >> 8);
 }
 
 // Pop/pull a byte from the stack in main memory
 static uint8_t stack_pull(Processor *proc) {
-    return address_read(proc->c, STACK_BASE | ++proc->sp);
+    return proc->read(proc->u, STACK_BASE | ++proc->sp);
 }
 
 // Pop/pull a 16-bit value from the stack in main memory
 static uint16_t stack_pull16(Processor *proc) {
-    uint16_t word = address_read(proc->c, STACK_BASE | ++proc->sp) << 8;
-    word |= address_read(proc->c, STACK_BASE | ++proc->sp);
-    return word;
+    uint16_t w = proc->read(proc->u, STACK_BASE | ++proc->sp) << 8;
+    w |= proc->read(proc->u, STACK_BASE | ++proc->sp);
+    return w;
+}
+
+// Read a 16-bit address from the address space
+static uint16_t read_address(Processor *proc, uint16_t addr) {
+    uint16_t address = proc->read(proc->u, addr);
+    address |= proc->read(proc->u, addr + 1) << 8;
+    return address;
 }
 
 // Get the current state of a particular flag in the status register
@@ -93,23 +72,54 @@ static void set_flag(Processor *proc, Processor_flag flag, bool state) {
     else proc->status &= ~flag;
 }
 
-// Set or clear the zero and negative flags based on a value
+// Set or clear the zero and negative flags based on a value; this is a very
+// common idiom in the processor
 static void set_zn(Processor *proc, uint8_t data) {
     set_flag(proc, FLAG_ZERO, data == 0);
     set_flag(proc, FLAG_NEGATIVE, data & 0x80);
 }
 
-// Generate a CPU interruption (IRQ or NMI)
-void processor_interrupt(Processor *proc, Processor_int type) {
-    // Maskable interrupts (IRQ) are ignored if the IRQ disable flag is set
-    if(type == INT_IRQ && get_flag(proc, FLAG_ID)) return;
+// Initializes a new processor instance, connecting it to its address space
+void processor_init(Processor *proc, AddrReader read,
+    AddrWriter write, void *userdata) {
+    proc->read = read;
+    proc->write = write;
+    proc->u = userdata;
+    processor_reset(proc);
+}
+
+// Initialize/reset the state of the CPU
+void processor_reset(Processor *proc) {
+    proc->x = 0;
+    proc->y = 0;
+    proc->acc = 0;
+    proc->sp = 0xFD;
+    proc->status = 0x34; // IRQ starts disabled
+    proc->pc = read_address(proc, RESET_VECTOR);
+}
+
+// Request a CPU interruption (IRQ)
+void processor_request(Processor *proc) {
+    // If IRQ has been disabled, ignore this request
+    if(get_flag(proc, FLAG_ID)) return;
     // When an interrupt happens, the PC and status registers are pushed onto
     // the stack and a new value for the PC is loaded from an interrupt vector,
     // stored at a fixed location in memory
     stack_push16(proc, proc->pc);
     stack_push(proc, proc->status);
     set_flag(proc, FLAG_ID, true); // disable IRQ
-    proc->pc = read_address(proc->c, type == INT_IRQ ? IRQ_VEC : NMI_VEC);
+    proc->pc = read_address(proc, IRQ_VECTOR);
+}
+
+// Generate a non-maskable CPU interruption (NMI)
+void processor_interrupt(Processor *proc) {
+    // When an interrupt happens, the PC and status registers are pushed onto
+    // the stack and a new value for the PC is loaded from an interrupt vector,
+    // stored at a fixed location in memory
+    stack_push16(proc, proc->pc);
+    stack_push(proc, proc->status);
+    set_flag(proc, FLAG_ID, true); // disable IRQ
+    proc->pc = read_address(proc, NMI_VECTOR);
 }
 
 // Operation of addition in the processor
@@ -186,17 +196,17 @@ static void processor_execute(Processor *proc) {
         case STA:
             // STA: store the contents of the accumulator into the given address
             addr = get_address(proc);
-            address_write(proc->c, addr, proc->acc);
+            proc->write(proc->u, addr, proc->acc);
             break;
         case STX:
             // STX: store the contents of the x register into the given address
             addr = get_address(proc);
-            address_write(proc->c, addr, proc->x);
+            proc->write(proc->u, addr, proc->x);
             break;
         case STY:
             // STY: store the contents of the y register into the given address
             addr = get_address(proc);
-            address_write(proc->c, addr, proc->y);
+            proc->write(proc->u, addr, proc->y);
             break;
         // Register transfer operations:
         case TAX:
@@ -308,7 +318,7 @@ static void processor_execute(Processor *proc) {
         case INC:
             // INC: increment the memory location at the given address
             data = get_data(proc, &addr);
-            address_write(proc->c, addr, data + 1);
+            proc->write(proc->u, addr, data + 1);
             set_zn(proc, data + 1);
             break;
         case INX:
@@ -323,7 +333,7 @@ static void processor_execute(Processor *proc) {
         case DEC:
             // DEC: decrement the memory location at the given address
             data = get_data(proc, &addr);
-            address_write(proc->c, addr, data - 1);
+            proc->write(proc->u, addr, data - 1);
             set_zn(proc, data + 1);
             break;
         case DEX:
@@ -343,7 +353,7 @@ static void processor_execute(Processor *proc) {
             data <<= 1;
             set_zn(proc, data);
             if(proc->inst.mode != MODE_ACCUMULATOR)
-                address_write(proc->c, addr, data);
+                proc->write(proc->u, addr, data);
             else
                 proc->acc = data;
             break;
@@ -355,7 +365,7 @@ static void processor_execute(Processor *proc) {
             data >>= 1;
             set_zn(proc, data);
             if(proc->inst.mode != MODE_ACCUMULATOR)
-                address_write(proc->c, addr, data);
+                proc->write(proc->u, addr, data);
             else
                 proc->acc = data;
             break;
@@ -370,7 +380,7 @@ static void processor_execute(Processor *proc) {
             set_flag(proc, FLAG_CARRY, aux);
             set_zn(proc, data);
             if(proc->inst.mode != MODE_ACCUMULATOR)
-                address_write(proc->c, addr, data);
+                proc->write(proc->u, addr, data);
             else
                 proc->acc = data;
             break;
@@ -385,7 +395,7 @@ static void processor_execute(Processor *proc) {
             set_flag(proc, FLAG_CARRY, aux);
             set_zn(proc, data);
             if(proc->inst.mode != MODE_ACCUMULATOR)
-                address_write(proc->c, addr, data);
+                proc->write(proc->u, addr, data);
             else
                 proc->acc = data;
             break;
@@ -468,11 +478,12 @@ static void processor_execute(Processor *proc) {
             // CLV: clear overflow flag
             set_flag(proc, FLAG_OVERFLOW, false);
             break;
+
         // System/symbolic operations:
         case BRK:
             // BRK: force an interrupt (IRQ), setting the BRK flag
             set_flag(proc, FLAG_BRK, true);
-            processor_interrupt(proc, INT_IRQ);
+            processor_request(proc);
             break;
         case NOP:
             // NOP: do nothing
@@ -488,19 +499,19 @@ static void processor_execute(Processor *proc) {
             // ERR: indicative of a decoder error, reported by the decoder itself
             break;
     }
-    proc->pc += get_inc(proc); // advance to the next instruction
+    proc->pc += get_inc(proc->inst.mode); // advance to the next instruction
 }
 
 // Run a single clock cycle of execution
 void processor_step(Processor *proc) {
-    uint8_t opcode = address_read(proc->c, proc->pc++);
+    uint8_t opcode = proc->read(proc->u, proc->pc++);
     proc->inst = decode(opcode);
     processor_execute(proc);
 }
 
 // Run a single clock cycle of execution (debugging version)
 void processor_step_debug(Processor *proc) {
-    uint8_t opcode = address_read(proc->c, proc->pc++);
+    uint8_t opcode = proc->read(proc->u, proc->pc++);
     proc->inst = decode(opcode);
     printf("Read opcode: %02X\nIn assembly: ", opcode);
     disassemble(proc);

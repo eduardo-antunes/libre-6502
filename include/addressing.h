@@ -26,6 +26,7 @@
 // using.
 
 #include <stdint.h>
+#include "definitions.h"
 #include "processor.h"
 
 // Based on the current addressing mode, get an absolute address for the
@@ -38,8 +39,8 @@ uint16_t get_address(const Processor *proc);
 // to the data, they may optionally get it through the address parameter
 uint8_t get_data(const Processor *proc, uint16_t *address);
 
-// Based on the current addressing mode, determine by how much the PC should
-// be incremented to get to the next instruction
-uint8_t get_inc(const Processor *proc);
+// Based on the addressing mode, determine by how much the PC should be
+// incremented to get to the next instruction
+uint8_t get_inc(Mode mode);
 
 #endif // LIBRE_6502_ADDRESSING_H

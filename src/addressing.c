@@ -22,17 +22,16 @@
 #include "addressing.h"
 #include "definitions.h"
 #include "processor.h"
-#include "computer.h"
 
 // Read the 8-bit value following the opcode
 static inline uint8_t next_byte(const Processor *proc) {
-    return address_read(proc->c, proc->pc);
+    return proc->read(proc->u, proc->pc);
 }
 
 // Read the 16-bit address following the opcode
 static inline uint16_t next_address(const Processor *proc) {
-    uint16_t address = address_read(proc->c, proc->pc);
-    address |= address_read(proc->c, proc->pc + 1) << 8;
+    uint16_t address = proc->read(proc->u, proc->pc);
+    address |= proc->read(proc->u, proc->pc + 1) << 8;
     return address;
 }
 
@@ -93,26 +92,26 @@ uint16_t get_address(const Processor *proc) {
             // The following two bytes contain a 16-bit pointer to the real
             // absolute address. NOTE this thing had a bug in the original CPU
             ptr = next_address(proc);
-            addr = address_read(proc->c, ptr);
+            addr = proc->read(proc->u, ptr);
             // NOTE the original bug is reproduced by this line:
             ptr = (ptr & 0x00FF) == 0x00FF ? ptr & 0xFF00 : ptr + 1;
-            addr |= address_read(proc->c, ptr) << 8;
+            addr |= proc->read(proc->u, ptr) << 8;
             break;
         case MODE_INDIRECT_X:
             // The following byte contains a zero page address, which is to be
             // added to the contents of the x register, with zero page wrap
             // around, to get a pointer to the real absolute address
             ptr = (next_byte(proc) + proc->x) & 0xFF;
-            addr = address_read(proc->c, ptr);
-            addr |= address_read(proc->c, (ptr + 1) & 0xFF) << 8;
+            addr = proc->read(proc->u, ptr);
+            addr |= proc->read(proc->u, (ptr + 1) & 0xFF) << 8;
             break;
         case MODE_INDIRECT_Y:
             // The following byte contains a zero page address, which is to be
             // added to the contents of the y register, with zero page wrap
             // around, to get a pointer to the real absolute address
             ptr = (next_byte(proc) + proc->x) & 0xFF;
-            addr = address_read(proc->c, ptr);
-            addr |= address_read(proc->c, (ptr + 1) & 0xFF) << 8;
+            addr = proc->read(proc->u, ptr);
+            addr |= proc->read(proc->u, (ptr + 1) & 0xFF) << 8;
             break;
         default:
             fprintf(stderr, "[!] Unrecognized addressing mode: %d\n",
@@ -147,14 +146,14 @@ uint8_t get_data(const Processor *proc, uint16_t *address) {
             // fetching an 8-bit value from the address they specify
             addr = get_address(proc);
             if(address != NULL) *address = addr;
-            return address_read(proc->c, addr);
+            return proc->read(proc->u, addr);
     }
 }
 
 // Based on the current addressing mode, determine by how much the PC should
 // be incremented to get to the next instruction
-uint8_t get_inc(const Processor *proc) {
-    if(proc->inst.mode <= MODE_ACCUMULATOR) return 0;
-    if(proc->inst.mode <= MODE_RELATIVE) return 1;
+uint8_t get_inc(Mode mode) {
+    if(mode <= MODE_ACCUMULATOR) return 0;
+    if(mode <= MODE_RELATIVE) return 1;
     return 2;
 }

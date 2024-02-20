@@ -37,7 +37,7 @@ static Operation op_table[][8] = {
 };
 
 // Lookup tables for addressing modes, based on groups
-static Addressing_mode mode_table[][8] = {
+static Mode mode_table[][8] = {
     // Group 1 modes
     [0] = { [0] = MODE_INDIRECT_X,  [1] = MODE_ZEROPAGE,
             [2] = MODE_IMMEDIATE,   [3] = MODE_ABSOLUTE,

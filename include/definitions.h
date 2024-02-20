@@ -23,7 +23,7 @@
 
 #include <stdint.h>
 
-// Enumeration representing all CPU addressing modes
+// Addressing modes for the 6502 CPU
 typedef enum : uint8_t {
     MODE_IMPLIED = 0   ,
     MODE_ACCUMULATOR   ,
@@ -38,9 +38,9 @@ typedef enum : uint8_t {
     MODE_INDIRECT      ,
     MODE_INDIRECT_X    ,
     MODE_INDIRECT_Y    ,
-} Addressing_mode;
+} Mode;
 
-// Enumeration representing the available CPU operations
+// Available CPU operations
 typedef enum : uint8_t {
     // Load and store operations
     LDA = 0, LDX, LDY, STA, STX, STY,
@@ -69,9 +69,6 @@ typedef enum : uint8_t {
 } Operation;
 
 // Richer representation of a CPU instruction
-typedef struct {
-    Operation op;
-    Addressing_mode mode;
-} Instruction;
+typedef struct { Operation op; Mode mode; } Instruction;
 
 #endif // LIBRE_6502_DEFINITIONS_H
