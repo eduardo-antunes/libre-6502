@@ -16,15 +16,19 @@
    libre-6502. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef LIBRE_6502_DISASSEMBLER_H
-#define LIBRE_6502_DISASSEMBLER_H
+#ifndef LIBRE_6502_DEBUG_H
+#define LIBRE_6502_DEBUG_H
 
-// Disassembler for 6502 machine code
+// Debugging facilities for libre-6502
 
+#include <stdio.h>
+#include <stdint.h>
 #include "processor.h"
 
-// Disassemble a single instruction; requires a reference to the processor
-// to read the instruction's argument from memory
-void disassemble(const Processor *proc);
+// Read code from the given addressing space (provided via the userdata and
+// read parameters) at the given address and with the given length,
+// decoding and disassembling it to the given file
+void disassemble(FILE *out, void *userdata, AddrReader read,
+        uint16_t addr, size_t code_length);
 
-#endif // LIBRE_6502_DISASSEMBLER_H
+#endif // LIBRE_6502_DEBUG_H

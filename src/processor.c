@@ -16,15 +16,18 @@
    libre-6502. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stddef.h>
 
 #include "decoder.h"
 #include "processor.h"
 #include "addressing.h"
-#include "debug.h"
+#include "definitions.h"
+
+// Convert to and from (packed) BCD representation (for decimal mode)
+#define FROM_BCD(bin) (((bin) >> 4) * 10 + ((bin) & 0xF))
+#define TO_BCD(dec)   (((dec) / 10) << 4 | ((dec) % 10))
 
 // Base address of the stack. It is confined to page #01, and its primary use
 // is to store return addresses (though it can be used for arbitrary data
@@ -32,7 +35,7 @@
 #define STACK_BASE 0x0100
 
 // Push a byte to the stack in main memory
-static void stack_push(Processor *proc, uint8_t u) {
+static inline void stack_push(Processor *proc, uint8_t u) {
     proc->write(proc->u, STACK_BASE | proc->sp--, u);
 }
 
@@ -43,7 +46,7 @@ static void stack_push16(Processor *proc, uint16_t w) {
 }
 
 // Pop/pull a byte from the stack in main memory
-static uint8_t stack_pull(Processor *proc) {
+static inline uint8_t stack_pull(Processor *proc) {
     return proc->read(proc->u, STACK_BASE | ++proc->sp);
 }
 
@@ -62,11 +65,11 @@ static uint16_t read_address(Processor *proc, uint16_t addr) {
 }
 
 // Get the current state of a particular flag in the status register
-static uint8_t get_flag(Processor *proc, Processor_flag flag) {
+static inline uint8_t get_flag(Processor *proc, Processor_flag flag) {
     return proc->status & flag;
 }
 
-// Set or clear a particular flag in the status register
+// Set a particular flag in the status register
 static void set_flag(Processor *proc, Processor_flag flag, bool state) {
     if(state) proc->status |= flag;
     else proc->status &= ~flag;
@@ -81,7 +84,7 @@ static void set_zn(Processor *proc, uint8_t data) {
 
 // Initializes a new processor instance, connecting it to its address space
 void processor_init(Processor *proc, AddrReader read,
-    AddrWriter write, void *userdata) {
+        AddrWriter write, void *userdata) {
     proc->read = read;
     proc->write = write;
     proc->u = userdata;
@@ -101,13 +104,13 @@ void processor_reset(Processor *proc) {
 // Request a CPU interruption (IRQ)
 void processor_request(Processor *proc) {
     // If IRQ has been disabled, ignore this request
-    if(get_flag(proc, FLAG_ID)) return;
+    if(get_flag(proc, FLAG_IRQ_DIS)) return;
     // When an interrupt happens, the PC and status registers are pushed onto
     // the stack and a new value for the PC is loaded from an interrupt vector,
     // stored at a fixed location in memory
     stack_push16(proc, proc->pc);
     stack_push(proc, proc->status);
-    set_flag(proc, FLAG_ID, true); // disable IRQ
+    set_flag(proc, FLAG_IRQ_DIS, true); // disable IRQ
     proc->pc = read_address(proc, IRQ_VECTOR);
 }
 
@@ -118,7 +121,7 @@ void processor_interrupt(Processor *proc) {
     // stored at a fixed location in memory
     stack_push16(proc, proc->pc);
     stack_push(proc, proc->status);
-    set_flag(proc, FLAG_ID, true); // disable IRQ
+    set_flag(proc, FLAG_IRQ_DIS, true); // disable IRQ
     proc->pc = read_address(proc, NMI_VECTOR);
 }
 
@@ -143,15 +146,36 @@ static void processor_add(Processor *proc) {
     proc->acc = (uint8_t) (sum & 0xFF);
 }
 
+// Operation of decimal (BCD) addition in the processor
+static void processor_decimal_add(Processor *proc) {
+    // NOTE what happens when one of the operands is invalid BCD is undefined
+    // in the original hardware, causing some really weird behavior. We do not
+    // (and don't need to) check for this situation
+    uint8_t data = get_data(proc, NULL);
+    data = FROM_BCD(data); // convert data from BCD
+
+    // We no longer have to store the result in 16 bits, because in BCD
+    // arithmetic carry is communicated by a value of over 0x64 (100)
+    uint8_t sum = FROM_BCD(proc->acc) + data + get_flag(proc, FLAG_CARRY);
+    set_flag(proc, FLAG_CARRY, sum >= 0x64);
+    if(sum >= 0x64) sum -= 0x64;
+    // Convert the result back to BCD and set the NEG and ZERO flags based on
+    // the converted value, to allow 0x80-0x99 to represent a negative range if
+    // so desired
+    proc->acc = TO_BCD(sum);
+    set_zn(proc, proc->acc);
+}
+
 // Operation of subtraction in the processor
 static void processor_sub(Processor *proc) {
     uint8_t data = get_data(proc, NULL);
     // The result has to be stored in 16 bits to detect carry out. This is a
     // poor man's substitute for the carry out signal in the original hardware
-    uint16_t diff = proc->acc - data - !get_flag(proc, FLAG_CARRY);
+    uint16_t diff = 0x0100 | proc->acc;
+    diff -= data - !get_flag(proc, FLAG_CARRY);
 
     // Here we check for a borrow
-    set_flag(proc, FLAG_CARRY, !(diff & 0x0100));
+    set_flag(proc, FLAG_CARRY, diff & 0x0100);
     // Here we ignore a potential borrow
     set_flag(proc, FLAG_ZERO, (diff & 0xFF) == 0);
     set_flag(proc, FLAG_NEGATIVE, diff & 0x80);
@@ -165,15 +189,44 @@ static void processor_sub(Processor *proc) {
     proc->acc = (uint8_t) (diff & 0xFF);
 }
 
-// General logic of the branching instructions
-static void branch(Processor *proc, Processor_flag flag, bool state) {
-    bool f = get_flag(proc, flag);
-    uint16_t addr = get_address(proc);
-    if(f == state) proc->pc = addr;
+// Operation of decimal (BCD) subtraction in the processor
+static void processor_decimal_sub(Processor *proc) {
+    // NOTE what happens when one of the operands is invalid BCD is undefined
+    // in the original hardware, causing some really weird behavior. We do not
+    // (and don't need to) check for this situation
+    uint8_t data = get_data(proc, NULL);
+    data = FROM_BCD(data); // convert data from BCD
+
+    // We no longer have to store the result in 16 bits, because in BCD
+    // arithmetic borrow is communicated by a value below 0x64 (100)
+    uint8_t diff = 0x64 + FROM_BCD(proc->acc);
+    diff -= data - !get_flag(proc, FLAG_CARRY);
+    set_flag(proc, FLAG_CARRY, diff >= 0x64);
+    if(diff >= 0x64) diff -= 0x64;
+    // Convert the result back to BCD and set the NEG and ZERO flags based on
+    // the converted value, to allow 0x80-0x99 to represent a negative range if
+    // so desired
+    proc->acc = TO_BCD(diff);
+    set_zn(proc, proc->acc);
 }
 
-// Execute a single instruction (it must have been read already)
-static void processor_execute(Processor *proc) {
+// Branches on flag set
+static inline void branch_set(Processor *proc, Processor_flag flag) {
+    if(get_flag(proc, flag)) proc->pc = get_address(proc);
+}
+
+// Branches on flag clear
+static inline void branch_clear(Processor *proc, Processor_flag flag) {
+    if(!get_flag(proc, flag)) proc->pc = get_address(proc);
+}
+
+// Run a single clock cycle of execution
+void processor_step(Processor *proc) {
+    // Fetch an opcode and decode it
+    uint8_t opcode = proc->read(proc->u, proc->pc++);
+    proc->inst = decode(opcode);
+
+    // Now execute it (with some auxiliary variables)
     uint16_t addr;
     uint8_t data, aux;
     switch(proc->inst.op) {
@@ -245,7 +298,7 @@ static void processor_execute(Processor *proc) {
             break;
         case PHP:
             // PHP: push the status register on the stack
-            set_flag(proc, FLAG_BRK, true);
+            set_flag(proc, FLAG_BREAK, true);
             stack_push(proc, proc->status);
             break;
         case PLA:
@@ -283,12 +336,14 @@ static void processor_execute(Processor *proc) {
         // Arithmetic instructions:
         case ADC:
             // ADC: Add the given data and the carry flag to the accumulator
-            processor_add(proc);
+            if(get_flag(proc, FLAG_DECIMAL)) processor_decimal_add(proc);
+            else processor_add(proc);
             break;
         case SBC:
             // SBC: subtract the given data and the negation of the carry flag (which
             // represents a borrow) from the accumulator
-            processor_sub(proc);
+            if(get_flag(proc, FLAG_DECIMAL)) processor_decimal_sub(proc);
+            else processor_sub(proc);
             break;
         case CMP:
             // CMP: compare the contents of the accumulator and the given data,
@@ -419,35 +474,35 @@ static void processor_execute(Processor *proc) {
         // Branch operations:
         case BEQ:
             // BEQ: branch if equal (zero flag is set)
-            branch(proc, FLAG_ZERO, true);
+            branch_set(proc, FLAG_ZERO);
             break;
         case BNE:
             // BNE: branch if not equal (zero flag is clear)
-            branch(proc, FLAG_ZERO, false);
+            branch_clear(proc, FLAG_ZERO);
             break;
         case BCS:
             // BCS: branch if carry is set
-            branch(proc, FLAG_CARRY, true);
+            branch_set(proc, FLAG_CARRY);
             break;
         case BCC:
             // BCC: branch if carry is clear
-            branch(proc, FLAG_CARRY, false);
+            branch_clear(proc, FLAG_CARRY);
             break;
         case BMI:
             // BCS: branch if negative (negative flag is set)
-            branch(proc, FLAG_NEGATIVE, true);
+            branch_set(proc, FLAG_NEGATIVE);
             break;
         case BPL:
             // BPL: branch if positive (negative flag is clear)
-            branch(proc, FLAG_NEGATIVE, false);
+            branch_clear(proc, FLAG_NEGATIVE);
             break;
         case BVS:
             // BVS: branch if an overflow happened (overflow flag is set)
-            branch(proc, FLAG_OVERFLOW, true);
+            branch_set(proc, FLAG_OVERFLOW);
             break;
         case BVC:
             // BVC: branch if no overflow happened (overflow flag is clear)
-            branch(proc, FLAG_OVERFLOW, false);
+            branch_clear(proc, FLAG_OVERFLOW);
             break;
         // Flag operations:
         case SEC:
@@ -456,11 +511,11 @@ static void processor_execute(Processor *proc) {
             break;
         case SEI:
             // SEI: set interrupt disable flag
-            set_flag(proc, FLAG_ID, true);
+            set_flag(proc, FLAG_IRQ_DIS, true);
             break;
         case SED:
             // SED: set decimal flag (no effect in the NES)
-            set_flag(proc, FLAG_DEC, true);
+            set_flag(proc, FLAG_DECIMAL, true);
             break;
         case CLC:
             // CLC: clear carry flag
@@ -468,11 +523,11 @@ static void processor_execute(Processor *proc) {
             break;
         case CLI:
             // CLI: clear interrupt disable flag
-            set_flag(proc, FLAG_ID, false);
+            set_flag(proc, FLAG_IRQ_DIS, false);
             break;
         case CLD:
             // CLD: clear decimal flag (no effect in the NES)
-            set_flag(proc, FLAG_DEC, false);
+            set_flag(proc, FLAG_DECIMAL, false);
             break;
         case CLV:
             // CLV: clear overflow flag
@@ -482,7 +537,7 @@ static void processor_execute(Processor *proc) {
         // System/symbolic operations:
         case BRK:
             // BRK: force an interrupt (IRQ), setting the BRK flag
-            set_flag(proc, FLAG_BRK, true);
+            set_flag(proc, FLAG_BREAK, true);
             processor_request(proc);
             break;
         case NOP:
@@ -491,7 +546,7 @@ static void processor_execute(Processor *proc) {
         case RTI:
             // RTI: return from an interrupt handler
             proc->status = stack_pull(proc); // restore status register
-            set_flag(proc, FLAG_BRK, false);
+            set_flag(proc, FLAG_BREAK, false);
             set_flag(proc, FLAG_NIL, false);
             proc->pc = stack_pull16(proc);
             break;
@@ -502,18 +557,5 @@ static void processor_execute(Processor *proc) {
     proc->pc += get_inc(proc->inst.mode); // advance to the next instruction
 }
 
-// Run a single clock cycle of execution
-void processor_step(Processor *proc) {
-    uint8_t opcode = proc->read(proc->u, proc->pc++);
-    proc->inst = decode(opcode);
-    processor_execute(proc);
-}
-
-// Run a single clock cycle of execution (debugging version)
-void processor_step_debug(Processor *proc) {
-    uint8_t opcode = proc->read(proc->u, proc->pc++);
-    proc->inst = decode(opcode);
-    printf("Read opcode: %02X\nIn assembly: ", opcode);
-    disassemble(proc);
-    processor_execute(proc);
-}
+#undef FROM_BCD
+#undef TO_BCD

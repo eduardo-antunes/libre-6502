@@ -21,7 +21,7 @@
 
 // Address for the so-called reset vectors. They should themselves point to
 // other address to which the execution should jump to in case of a non-
-// maskable interrupt, an interrupt request and a reset, respectively
+// maskable interrupt, an interrupt request or a reset, respectively
 #define NMI_VECTOR   0xFFFA
 #define IRQ_VECTOR   0xFFFE
 #define RESET_VECTOR 0xFFFC
@@ -47,9 +47,9 @@ typedef void    (*AddrWriter)(void *userdata, uint16_t address, uint8_t data);
 typedef enum : uint8_t {
     FLAG_CARRY    = (1 << 0), // indicates carry in adition, borrow in subtraction
     FLAG_ZERO     = (1 << 1), // indicates that the last value dealt with was 0
-    FLAG_ID       = (1 << 2), // determines whether maskable interrupts (IRQ) are disabled
-    FLAG_DEC      = (1 << 3), // determines if the CPU is in decimal mode (BCD)
-    FLAG_BRK      = (1 << 4), // for internal usage by the hardware only
+    FLAG_IRQ_DIS  = (1 << 2), // determines whether maskable interrupts (IRQ) are disabled
+    FLAG_DECIMAL  = (1 << 3), // determines if the CPU is in decimal mode (BCD)
+    FLAG_BREAK    = (1 << 4), // for internal usage by the hardware only
     FLAG_NIL      = (1 << 5), // unused
     FLAG_OVERFLOW = (1 << 6), // indicates an overflow happened in the last arithmetic operation
     FLAG_NEGATIVE = (1 << 7), // indicates the last value dealt with was negative
@@ -73,7 +73,7 @@ typedef struct {
 
 // Initializes a new processor instance, connecting it to its address space
 void processor_init(Processor *proc, AddrReader read,
-    AddrWriter write, void *userdata);
+        AddrWriter write, void *userdata);
 
 // Reset the CPU, reinitializing its state
 void processor_reset(Processor *proc);
@@ -86,8 +86,5 @@ void processor_interrupt(Processor *proc);
 
 // Run a single clock cycle of execution
 void processor_step(Processor *proc);
-
-// Run a single clock cycle of execution (debugging version)
-void processor_step_debug(Processor *proc);
 
 #endif // LIBRE_6502_PROCESSOR_H

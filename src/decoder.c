@@ -23,7 +23,7 @@
 #include "definitions.h"
 #include "decoder.h"
 
-// Lookup tables for operations, based on groups
+// Lookup tables for operations, indexed by group (-1)
 static Operation op_table[][8] = {
     // Group 1 operations
     [0] = { [0] = ORA, [1] = AND, [2] = EOR, [3] = ADC,
@@ -36,7 +36,7 @@ static Operation op_table[][8] = {
             [5] = LDY, [6] = CPY, [7] = CPX, },
 };
 
-// Lookup tables for addressing modes, based on groups
+// Lookup tables for addressing modes, indexed by group (-1)
 static Mode mode_table[][8] = {
     // Group 1 modes
     [0] = { [0] = MODE_INDIRECT_X,  [1] = MODE_ZEROPAGE,
@@ -51,7 +51,7 @@ static Mode mode_table[][8] = {
 
 // Report decoding error
 static void error(Instruction *inst, uint8_t opcode, const char *context) {
-    fprintf(stderr, "[!] Nonsensical opcode: %02X\n", opcode);
+    fprintf(stderr, "[!] Nonsensical opcode: 0x%02X\n", opcode);
     if(context != NULL) fprintf(stderr, "[?] %s\n", context);
     inst->op = ERR;
 }
@@ -69,7 +69,8 @@ Instruction decode(uint8_t opcode) {
         case 0x08: inst.op = PHP; break;
         case 0x18: inst.op = CLC; break;
         case 0x20: inst.op = JSR; inst.mode = MODE_ABSOLUTE; break;
-        case 0x38: inst.op = PLP; break;
+        case 0x28: inst.op = PLP; break;
+        case 0x38: inst.op = SEC; break;
         case 0x40: inst.op = RTI; break;
         case 0x48: inst.op = PHA; break;
         case 0x58: inst.op = CLI; break;
@@ -94,9 +95,9 @@ Instruction decode(uint8_t opcode) {
     // operations and addressing modes by inspecting bit patterns in them. Most
     // conform to the pattern 0bAAABBBCC, where AAA determines the operation, BBB
     // determines the addressing mode, and CC determines the instruction group.
-    uint8_t op = (opcode & 0xE0) >> 5;
-    uint8_t mode = (opcode & 0x1C) >> 2;
-    uint8_t group = opcode & 0x03;
+    uint8_t op = (opcode & 0xE0) >> 5;   // AAA
+    uint8_t mode = (opcode & 0x1C) >> 2; // BBB
+    uint8_t group = opcode & 0x03;       // CC
     switch(group) {
         case 1:
             // Group 1 instructions: the most regular ones
@@ -168,25 +169,13 @@ Instruction decode(uint8_t opcode) {
                 // whether it must be set or clear in order for the branch to
                 // actually take place
                 inst.mode = MODE_RELATIVE;
-                uint8_t flag = (op & 6) >> 1;
-                uint8_t status = op & 1;
+                uint8_t flag = (op & 0x6) >> 1; // XX
+                uint8_t status = op & 0x1;      // Y
                 switch(flag) {
-                    case 0:
-                        // NEGATIVE flag
-                        inst.op = status ? BMI : BPL;
-                        break;
-                    case 1:
-                        // OVERFLOW flag
-                        inst.op = status ? BVS : BVC;
-                        break;
-                    case 2:
-                        // CARRY flag
-                        inst.op = status ? BCS : BCC;
-                        break;
-                    case 3:
-                        // ZERO flag
-                        inst.op = status ? BEQ : BNE;
-                        break;
+                    case 0: inst.op = status ? BMI : BPL; break; // NEGATIVE
+                    case 1: inst.op = status ? BVS : BVC; break; // OVERFLOW
+                    case 2: inst.op = status ? BCS : BCC; break; // CARRY
+                    case 3: inst.op = status ? BEQ : BNE; break; // ZERO
                 }
                 return inst;
             }
@@ -225,7 +214,7 @@ Instruction decode(uint8_t opcode) {
                         error(&inst, opcode, "CPX does not support zero page x nor absolute_x addressing");
                     break;
                 default:
-                    // LDY is regular lol
+                    // Just LDY is regular basically
                     break;
             }
             break;
