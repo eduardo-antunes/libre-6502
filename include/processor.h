@@ -84,7 +84,7 @@ void processor_request(Processor *proc);
 // Generate a non-maskable CPU interruption (NMI)
 void processor_interrupt(Processor *proc);
 
-// Run a single clock cycle of execution
+// Run a single instruction as a discrete step (not cycle accurate)
 void processor_step(Processor *proc);
 
 #endif // LIBRE_6502_PROCESSOR_H

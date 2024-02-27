@@ -7,20 +7,21 @@
 
 int main() {
     uint8_t code[] = {
-        0x38,       // SEC ; set carry
-        0xF8,       // SED ; enable decimal mode
-        0xA9, 0x15, // LDA #21 ; acc = 0x15
+        0x38,       // SEC     ; set carry
+        0xF8,       // SED     ; enable decimal mode
+        0xA9, 0x15, // LDA #21 ; acc = $15
 
-        0xE9, 0x06, // SBC #06 ; acc = 0x09 (BCD arithmetic)
-        0xE5, 0x00, // SBC $00 ; acc = 0x99, CARRY clear
+        0xE9, 0x06, // SBC #06 ; acc = $09 (BCD arithmetic)
+        0xE5, 0x00, // SBC V0  ; acc = $99, CARRY clear
     };
-    Machine d = {0};
-    load_code(&d, code, sizeof(code));
-    write(&d, 0x00, 0x10); // ZEROPAGE
-    disassemble(stdout, &d, read, CODE_START, sizeof(code));
+
+    Fake f = {0};
+    load_code(&f, code, sizeof(code));
+    disassemble(stdout, &f, read, CODE_START, sizeof(code));
+    write(&f, 0x00, 0x10); // V0 = 16 ($10)
 
     Processor proc;
-    processor_init(&proc, read, write, &d);
+    processor_init(&proc, read, write, &f);
     REPEAT(3) processor_step(&proc); // skip setup
 
     // Basic BCD arithmetic correctness
@@ -34,6 +35,5 @@ int main() {
     assert_flag_clear(proc, FLAG_CARRY);
     assert_flag_set(proc, FLAG_NEGATIVE);
 
-    printf("Acc: 0x%02X\n", proc.acc);
     return TEST_OK;
 }

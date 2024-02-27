@@ -38,7 +38,7 @@ t3 = executable('sbc_dec',
   link_with: lib6502,
   )
 
-test('ADC instruction', t0, is_parallel : true)
-test('SBC instruction', t1, is_parallel : true)
-test('ADC instruction (DECIMAL mode)', t2, is_parallel : true)
-test('SBC instruction (DECIMAL mode)', t3, is_parallel : true)
+test('ADC instruction', t0)
+test('SBC instruction', t1)
+test('ADC instruction (DECIMAL mode)', t2)
+test('SBC instruction (DECIMAL mode)', t3)

@@ -25,7 +25,7 @@
 #include "addressing.h"
 #include "definitions.h"
 
-// Convert to and from (packed) BCD representation (for decimal mode)
+// Convert from and to (packed) BCD representation (for decimal mode)
 #define FROM_BCD(bin) (((bin) >> 4) * 10 + ((bin) & 0xF))
 #define TO_BCD(dec)   (((dec) / 10) << 4 | ((dec) % 10))
 
@@ -64,20 +64,15 @@ static uint16_t read_address(Processor *proc, uint16_t addr) {
     return address;
 }
 
-// Get the current state of a particular flag in the status register
-static inline uint8_t get_flag(Processor *proc, Processor_flag flag) {
-    return proc->status & flag;
-}
-
-// Set a particular flag in the status register
-static void set_flag(Processor *proc, Processor_flag flag, bool state) {
-    if(state) proc->status |= flag;
+// Set a particular flag in the status register based on a condition
+static inline void set_flag(Processor *proc, Processor_flag flag, bool cond) {
+    if(cond) proc->status |= flag;
     else proc->status &= ~flag;
 }
 
 // Set or clear the zero and negative flags based on a value; this is a very
 // common idiom in the processor
-static void set_zn(Processor *proc, uint8_t data) {
+static inline void set_zn(Processor *proc, uint8_t data) {
     set_flag(proc, FLAG_ZERO, data == 0);
     set_flag(proc, FLAG_NEGATIVE, data & 0x80);
 }
@@ -104,13 +99,13 @@ void processor_reset(Processor *proc) {
 // Request a CPU interruption (IRQ)
 void processor_request(Processor *proc) {
     // If IRQ has been disabled, ignore this request
-    if(get_flag(proc, FLAG_IRQ_DIS)) return;
+    if(proc->status & FLAG_IRQ_DIS) return;
     // When an interrupt happens, the PC and status registers are pushed onto
     // the stack and a new value for the PC is loaded from an interrupt vector,
     // stored at a fixed location in memory
     stack_push16(proc, proc->pc);
     stack_push(proc, proc->status);
-    set_flag(proc, FLAG_IRQ_DIS, true); // disable IRQ
+    proc->status |= FLAG_IRQ_DIS; // disable IRQ
     proc->pc = read_address(proc, IRQ_VECTOR);
 }
 
@@ -121,7 +116,7 @@ void processor_interrupt(Processor *proc) {
     // stored at a fixed location in memory
     stack_push16(proc, proc->pc);
     stack_push(proc, proc->status);
-    set_flag(proc, FLAG_IRQ_DIS, true); // disable IRQ
+    proc->status |= FLAG_IRQ_DIS; // disable IRQ
     proc->pc = read_address(proc, NMI_VECTOR);
 }
 
@@ -130,7 +125,7 @@ static void processor_add(Processor *proc) {
     uint8_t data = get_data(proc, NULL);
     // The result has to be stored in 16 bits to detect carry out. This is a
     // poor man's substitute for the carry out signal in the original hardware
-    uint16_t sum = proc->acc + data + get_flag(proc, FLAG_CARRY);
+    uint16_t sum = proc->acc + data + (proc->status & FLAG_CARRY);
 
     // Here we check for carry out
     set_flag(proc, FLAG_CARRY, sum & 0x0100);
@@ -156,7 +151,7 @@ static void processor_decimal_add(Processor *proc) {
 
     // We no longer have to store the result in 16 bits, because in BCD
     // arithmetic carry is communicated by a value of over 0x64 (100)
-    uint8_t sum = FROM_BCD(proc->acc) + data + get_flag(proc, FLAG_CARRY);
+    uint8_t sum = FROM_BCD(proc->acc) + data + (proc->status & FLAG_CARRY);
     set_flag(proc, FLAG_CARRY, sum >= 0x64);
     if(sum >= 0x64) sum -= 0x64;
     // Convert the result back to BCD and set the NEG and ZERO flags based on
@@ -172,7 +167,7 @@ static void processor_sub(Processor *proc) {
     // The result has to be stored in 16 bits to detect carry out. This is a
     // poor man's substitute for the carry out signal in the original hardware
     uint16_t diff = 0x0100 | proc->acc;
-    diff -= data - !get_flag(proc, FLAG_CARRY);
+    diff -= data - !(proc->status & FLAG_CARRY);
 
     // Here we check for a borrow
     set_flag(proc, FLAG_CARRY, diff & 0x0100);
@@ -200,7 +195,7 @@ static void processor_decimal_sub(Processor *proc) {
     // We no longer have to store the result in 16 bits, because in BCD
     // arithmetic borrow is communicated by a value below 0x64 (100)
     uint8_t diff = 0x64 + FROM_BCD(proc->acc);
-    diff -= data - !get_flag(proc, FLAG_CARRY);
+    diff -= data - !(proc->status & FLAG_CARRY);
     set_flag(proc, FLAG_CARRY, diff >= 0x64);
     if(diff >= 0x64) diff -= 0x64;
     // Convert the result back to BCD and set the NEG and ZERO flags based on
@@ -210,14 +205,14 @@ static void processor_decimal_sub(Processor *proc) {
     set_zn(proc, proc->acc);
 }
 
-// Branches on flag set
+// Branches on flag set (BEQ, BCS, BMI, BVS)
 static inline void branch_set(Processor *proc, Processor_flag flag) {
-    if(get_flag(proc, flag)) proc->pc = get_address(proc);
+    if(proc->status & flag) proc->pc = get_address(proc);
 }
 
-// Branches on flag clear
+// Branches on flag clear (BNE, BCC, BPL, BVC)
 static inline void branch_clear(Processor *proc, Processor_flag flag) {
-    if(!get_flag(proc, flag)) proc->pc = get_address(proc);
+    if(!(proc->status & flag)) proc->pc = get_address(proc);
 }
 
 // Run a single clock cycle of execution
@@ -298,7 +293,7 @@ void processor_step(Processor *proc) {
             break;
         case PHP:
             // PHP: push the status register on the stack
-            set_flag(proc, FLAG_BREAK, true);
+            proc->status |= FLAG_BREAK;
             stack_push(proc, proc->status);
             break;
         case PLA:
@@ -336,13 +331,13 @@ void processor_step(Processor *proc) {
         // Arithmetic instructions:
         case ADC:
             // ADC: Add the given data and the carry flag to the accumulator
-            if(get_flag(proc, FLAG_DECIMAL)) processor_decimal_add(proc);
+            if(proc->status & FLAG_DECIMAL) processor_decimal_add(proc);
             else processor_add(proc);
             break;
         case SBC:
             // SBC: subtract the given data and the negation of the carry flag (which
             // represents a borrow) from the accumulator
-            if(get_flag(proc, FLAG_DECIMAL)) processor_decimal_sub(proc);
+            if(proc->status & FLAG_DECIMAL) processor_decimal_sub(proc);
             else processor_sub(proc);
             break;
         case CMP:
@@ -431,7 +426,7 @@ void processor_step(Processor *proc) {
             aux = data & 0x80; // leftmost bit (7), to be put in the carry flag
             data <<= 1;
             // The rightmost bit (0) is filled with the current carry flag
-            data |= get_flag(proc, FLAG_CARRY);
+            data |= proc->status & FLAG_CARRY;
             set_flag(proc, FLAG_CARRY, aux);
             set_zn(proc, data);
             if(proc->inst.mode != MODE_ACCUMULATOR)
@@ -446,7 +441,7 @@ void processor_step(Processor *proc) {
             aux = data & 0x01; // rightmost bit (0), to be put in the carry flag
             data >>= 1;
             // The leftmost bit (7) is filled with the current carry flag
-            data |= get_flag(proc, FLAG_CARRY) << 7;
+            data |= (proc->status & FLAG_CARRY) << 7;
             set_flag(proc, FLAG_CARRY, aux);
             set_zn(proc, data);
             if(proc->inst.mode != MODE_ACCUMULATOR)
@@ -507,37 +502,37 @@ void processor_step(Processor *proc) {
         // Flag operations:
         case SEC:
             // SEC: set carry flag
-            set_flag(proc, FLAG_CARRY, true);
+            proc->status |= FLAG_CARRY;
             break;
         case SEI:
             // SEI: set interrupt disable flag
-            set_flag(proc, FLAG_IRQ_DIS, true);
+            proc->status |= FLAG_IRQ_DIS;
             break;
         case SED:
-            // SED: set decimal flag (no effect in the NES)
-            set_flag(proc, FLAG_DECIMAL, true);
+            // SED: set decimal flag (BCD arithmetic)
+            proc->status |= FLAG_DECIMAL;
             break;
         case CLC:
             // CLC: clear carry flag
-            set_flag(proc, FLAG_CARRY, false);
+            proc->status &= ~FLAG_CARRY;
             break;
         case CLI:
             // CLI: clear interrupt disable flag
-            set_flag(proc, FLAG_IRQ_DIS, false);
+            proc->status &= ~FLAG_IRQ_DIS;
             break;
         case CLD:
-            // CLD: clear decimal flag (no effect in the NES)
-            set_flag(proc, FLAG_DECIMAL, false);
+            // CLD: clear decimal flag (binary arithmetic)
+            proc->status &= ~FLAG_DECIMAL;
             break;
         case CLV:
             // CLV: clear overflow flag
-            set_flag(proc, FLAG_OVERFLOW, false);
+            proc->status &= ~FLAG_OVERFLOW;
             break;
 
         // System/symbolic operations:
         case BRK:
             // BRK: force an interrupt (IRQ), setting the BRK flag
-            set_flag(proc, FLAG_BREAK, true);
+            proc->status |= FLAG_BREAK;
             processor_request(proc);
             break;
         case NOP:
@@ -546,12 +541,14 @@ void processor_step(Processor *proc) {
         case RTI:
             // RTI: return from an interrupt handler
             proc->status = stack_pull(proc); // restore status register
-            set_flag(proc, FLAG_BREAK, false);
-            set_flag(proc, FLAG_NIL, false);
+            proc->status &= ~FLAG_BREAK; // clear break
+            proc->status &= ~FLAG_NIL;   // clear nil
             proc->pc = stack_pull16(proc);
             break;
         case ERR:
-            // ERR: indicative of a decoder error, reported by the decoder itself
+            // ERR: this represents an invalid opcode. In the real hardware,
+            // this would cause undefined behavior; this allows to just do
+            // nothing without much of an issue (I think)
             break;
     }
     proc->pc += get_inc(proc->inst.mode); // advance to the next instruction

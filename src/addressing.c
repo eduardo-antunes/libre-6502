@@ -16,17 +16,12 @@
    libre-6502. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <stdio.h>
 #include <stdint.h>
+#include <stddef.h>
 
 #include "addressing.h"
 #include "definitions.h"
 #include "processor.h"
-
-// Read the 8-bit value following the opcode
-static inline uint8_t next_byte(const Processor *proc) {
-    return proc->read(proc->u, proc->pc);
-}
 
 // Read the 16-bit address following the opcode
 static inline uint16_t next_address(const Processor *proc) {
@@ -54,23 +49,23 @@ uint16_t get_address(const Processor *proc) {
             break;
         case MODE_ZEROPAGE:
             // A zero page address is stored in the following byte
-            addr = next_byte(proc);
+            addr = proc->read(proc->u, proc->pc);
             break;
         case MODE_ZEROPAGE_X:
             // The contents of the x register are added to the zero page
             // address in the following byte to produce the final address
-            addr = (next_byte(proc) + proc->x) & 0xFF;
+            addr = (proc->read(proc->u, proc->pc) + proc->x) & 0xFF;
             break;
         case MODE_ZEROPAGE_Y:
             // The contents of the y register are added to the zero page
             // address in the following byte to produce the final address
-            addr = (next_byte(proc) + proc->x) & 0xFF;
+            addr = (proc->read(proc->u, proc->pc) + proc->y) & 0xFF;
             break;
         case MODE_RELATIVE:
             // Exclusive to branching instructions. The following byte contains
             // a signed jump offset, which should be added to the current value
             // of the PC (after reading the instruction) to get the raw address
-            addr = next_byte(proc);
+            addr = proc->read(proc->u, proc->pc);
             if(addr & 0x80) addr |= 0xFF00; // sign extension
             addr += proc->pc;
             break;
@@ -101,7 +96,7 @@ uint16_t get_address(const Processor *proc) {
             // The following byte contains a zero page address, which is to be
             // added to the contents of the x register, with zero page wrap
             // around, to get a pointer to the real absolute address
-            ptr = (next_byte(proc) + proc->x) & 0xFF;
+            ptr = (proc->read(proc->u, proc->pc) + proc->x) & 0xFF;
             addr = proc->read(proc->u, ptr);
             addr |= proc->read(proc->u, (ptr + 1) & 0xFF) << 8;
             break;
@@ -109,13 +104,13 @@ uint16_t get_address(const Processor *proc) {
             // The following byte contains a zero page address, which is to be
             // added to the contents of the y register, with zero page wrap
             // around, to get a pointer to the real absolute address
-            ptr = (next_byte(proc) + proc->x) & 0xFF;
+            ptr = (proc->read(proc->u, proc->pc) + proc->x) & 0xFF;
             addr = proc->read(proc->u, ptr);
             addr |= proc->read(proc->u, (ptr + 1) & 0xFF) << 8;
             break;
         default:
-            fprintf(stderr, "[!] Unrecognized addressing mode: %d\n",
-                proc->inst.mode);
+            // Should never ever happen
+            break;
     }
     return addr;
 }
@@ -135,7 +130,7 @@ uint8_t get_data(const Processor *proc, uint16_t *address) {
             return proc->acc;
         case MODE_IMMEDIATE:
             // The data is the byte following the instruction
-            return next_byte(proc);
+            return proc->read(proc->u, proc->pc);
         case MODE_RELATIVE:
             // It makes no sense to fetch data here, given that the only
             // instructions that use this are branching instructions, which

@@ -7,23 +7,24 @@
 
 int main() {
     uint8_t code[] = {
-        0x18,       // CLC ; clear carry
-        0xF8,       // SED ; enable decimal mode
-        0xA9, 0x09, // LDA #09 ; acc = 0x09
+        0x18,       // CLC      ; clear carry
+        0xF8,       // SED      ; enable decimal mode
+        0xA9, 0x09, // LDA #09  ; acc = $09
 
-        0x69, 0x01, // ADC #01 ; acc = 0x10 (BCD arithmetic)
-        0x65, 0x01, // ADC $01 ; acc = 0x85, NEG flag set
-        0x69, 0x17, // ADC #23 ; acc = 0x02, CARRY flag set
-        0x18,       // CLC ; clear carry
+        0x69, 0x01, // ADC #01  ; acc = $10 (BCD arithmetic)
+        0x65, 0x00, // ADC V0   ; acc = $85, NEG flag set
+        0x69, 0x17, // ADC #23  ; acc = $02, CARRY flag set
+        0x18,       // CLC      ; clear carry
         0x69, 0x98, // ADC #$98 ; acc = 0, CARRY and ZERO set
     };
-    Machine d = {0};
-    load_code(&d, code, sizeof(code));
-    write(&d, 0x01, 0x75); // ZEROPAGE
-    disassemble(stdout, &d, read, CODE_START, sizeof(code));
+
+    Fake f = {0};
+    load_code(&f, code, sizeof(code));
+    disassemble(stdout, &f, read, CODE_START, sizeof(code));
+    write(&f, 0x00, 0x75); // V0 = 117 ($75)
 
     Processor proc;
-    processor_init(&proc, read, write, &d);
+    processor_init(&proc, read, write, &f);
     REPEAT(3) processor_step(&proc); // skip setup
 
     // Basic BCD arithmetic correctness
@@ -45,6 +46,5 @@ int main() {
     assert(proc.acc == 0x00);
     assert_flag_set(proc, FLAG_ZERO);
 
-    printf("Acc: 0x%02X\n", proc.acc);
     return TEST_OK;
 }

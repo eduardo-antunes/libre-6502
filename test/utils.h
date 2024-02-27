@@ -23,9 +23,9 @@
 
 #define CODE_START  0x0100
 
-typedef struct { uint8_t ram[1024]; } Machine; // simple addressing space
+typedef struct { uint8_t ram[1024]; } Fake; // simple addressing space
 
-void load_code(Machine *d, uint8_t code[], size_t code_length); // loads code
+void load_code(Fake *f, uint8_t code[], size_t code_length); // loads code
 
 uint8_t read(void *ptr, uint16_t addr); // reads from given address
 
